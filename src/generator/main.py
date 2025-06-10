@@ -15,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 
-DB_URL = os.getenv("DATABASE_URL", "sqlite:///hotel_barcelo.db")
+DB_URL = os.getenv("DATABASE_URL")
 
 Base = declarative_base()
 fake = Faker()
