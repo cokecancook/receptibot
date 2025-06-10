@@ -1,7 +1,8 @@
-FROM postgres:latest 
+FROM python:3.11-slim
 
-ENV POSTGRES_USER=postgres
-ENV POSTGRES_PASSWORD=postgres
-ENV POSTGRES_DB=hotel_barcelo_db
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY main.py ./
 
-EXPOSE 5432
+ENTRYPOINT ["python", "main.py"]
