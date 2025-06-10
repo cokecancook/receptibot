@@ -1,3 +1,4 @@
+sqlalchemy
 faker
-SQLAlchemy
 psycopg2-binary
+
