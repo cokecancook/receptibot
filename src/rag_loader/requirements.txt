@@ -1,0 +1,4 @@
+qdrant-client
+requests
+PyPDF2
+pathlib
