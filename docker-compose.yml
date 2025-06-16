@@ -26,6 +26,7 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/hotel_barcelo_db}
+      TOTAL_GUESTS: ${TOTAL_GUESTS:-200}
     depends_on:
       - postgres
     networks:
@@ -36,7 +37,7 @@ services:
     container_name: hotel_api_container
     build:
       context: ./src  
-      dockerfile: api/api-booking/Dockerfile
+      dockerfile: api/api-services/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/hotel_barcelo_db}
       FLASK_ENV: ${FLASK_ENV:-development}
@@ -52,7 +53,7 @@ services:
 
   pgadmin:
     container_name: pgadmin_container
-    image: dpage/pgadmin4:9.0
+    image: dpage/pgadmin4:9.4
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}

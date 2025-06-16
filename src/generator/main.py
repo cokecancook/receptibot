@@ -1,122 +1,166 @@
 import os
 import random
 from datetime import datetime, timedelta
+from collections import defaultdict
 
 from faker import Faker
 from sqlalchemy import (
     Column,
-    Date,
-    Float,
-    ForeignKey,
     Integer,
     String,
+    DateTime,
+    ForeignKey,
     create_engine,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
-
 DB_URL = os.getenv("DATABASE_URL")
+TOTAL_GUESTS = os.getenv("TOTAL_GUESTS")
+if TOTAL_GUESTS is not None:
+    try:
+        TOTAL_GUESTS = int(TOTAL_GUESTS)
+    except ValueError:
+        raise ValueError(
+            "La variable de entorno TOTAL_GUESTS debe ser un entero válido."
+        )
+
+MAX_FILL_RATE = float(os.getenv("MAX_FILL_RATE", 0.5))
+FULL_DAY_PROB = float(os.getenv("FULL_DAY_PROB", 0.2))
 
 Base = declarative_base()
-fake = Faker()
+fake = Faker(
+    [
+        "es_ES",
+        "en_US",
+        "en_GB",
+        "fr_FR",
+        "de_DE"
+    ]
+)
 
-ROOM_TYPES = [
-    ("single", 80.0),
-    ("double", 120.0),
-    ("suite", 200.0),
+offering = [
+    {"name": "gimnasio", "capacity": 10},
+    {"name": "sauna", "capacity": 3},
 ]
 
 
-class Room(Base):
-    __tablename__ = "rooms"
-
+class Service(Base):
+    __tablename__ = "services"
     id = Column(Integer, primary_key=True)
-    number = Column(String, unique=True, nullable=False)
-    type = Column(String, nullable=False)
-    price = Column(Float, nullable=False)
+    name = Column(String, unique=True, nullable=False)
+    capacity = Column(Integer, nullable=False)
 
-    reservations = relationship(
-        "Reservation", back_populates="room", cascade="all, delete-orphan"
+    slots = relationship("Slot", back_populates="service", cascade="all, delete-orphan")
+
+
+class Slot(Base):
+    __tablename__ = "slots"
+    id = Column(Integer, primary_key=True)
+    service_id = Column(Integer, ForeignKey("services.id"), nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    capacity = Column(Integer, nullable=False)
+
+    service = relationship("Service", back_populates="slots")
+    bookings = relationship(
+        "Booking", back_populates="slot", cascade="all, delete-orphan"
     )
 
-    def __repr__(self) -> str:
-        return f"<Room {self.number} ({self.type})>"
 
-
-class Reservation(Base):
-    __tablename__ = "reservations"
-
+class Booking(Base):
+    __tablename__ = "bookings"
     id = Column(Integer, primary_key=True)
-    room_id = Column(Integer, ForeignKey("rooms.id"), nullable=False)
+    slot_id = Column(Integer, ForeignKey("slots.id"), nullable=False)
     guest_name = Column(String, nullable=False)
-    checkin = Column(Date, nullable=False)
-    checkout = Column(Date, nullable=False)
 
-    room = relationship("Room", back_populates="reservations")
-
-    def __repr__(self) -> str:
-        return (
-            f"<Reservation {self.id}: {self.guest_name} en habitación {self.room_id} "
-            f"({self.checkin}—{self.checkout})>"
-        )
+    slot = relationship("Slot", back_populates="bookings")
 
 
 def get_session(db_url: str = DB_URL):
-
     engine = create_engine(db_url, echo=False, future=True)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, expire_on_commit=False)()
 
 
-def generate_rooms(session, total_rooms: int = 50):
+def generate_services(session):
+    existing = {s.name for s in session.query(Service).all()}
+    new_services = []
+    for svc in offering:
+        if svc["name"] not in existing:
+            new_services.append(Service(name=svc["name"], capacity=svc["capacity"]))
+    if new_services:
+        session.bulk_save_objects(new_services)
+        session.commit()
+    print(f"Servicios generados/confirmados: {[s['name'] for s in offering]}")
 
-    rooms = []
-    for i in range(1, total_rooms + 1):
-        room_type, price = random.choice(ROOM_TYPES)
-        rooms.append(Room(number=f"{i:03d}", type=room_type, price=price))
 
-    session.bulk_save_objects(rooms)
+def generate_slots(session, days_ahead: int = 7, open_hr: int = 6, close_hr: int = 22):
+    services = session.query(Service).all()
+    now = datetime.now().replace(minute=0, second=0, microsecond=0)
+    slots = []
+    for svc in services:
+        for d in range(days_ahead):
+            day = now + timedelta(days=d)
+            for hr in range(open_hr, close_hr):
+                slots.append(
+                    Slot(
+                        service_id=svc.id,
+                        start_time=day.replace(hour=hr),
+                        capacity=svc.capacity,
+                    )
+                )
+    session.bulk_save_objects(slots)
     session.commit()
-    print(f"Generadas {len(rooms)} habitaciones.")
+    print(f"Generados {len(slots)} slots para los próximos {days_ahead} días.")
 
 
-def generate_reservations(session, num_res: int = 100):
+def generate_bookings(session):
+    slots = session.query(Slot).all()
 
-    room_ids = [r.id for r in session.query(Room.id).all()]
-    if not room_ids:
-        raise RuntimeError(
-            "No hay habitaciones para asignar reservas. Ejecuta primero generate_rooms()."
+    if TOTAL_GUESTS is not None:
+        bookings = []
+        for _ in range(TOTAL_GUESTS):
+            slot = random.choice(slots)
+            current = session.query(Booking).filter_by(slot_id=slot.id).count()
+            if current < slot.capacity:
+                bookings.append(Booking(slot_id=slot.id, guest_name=fake.name()))
+        session.bulk_save_objects(bookings)
+        session.commit()
+        print(
+            f"Generadas {len(bookings)} reservas totales especificadas (TOTAL_GUESTS={TOTAL_GUESTS})."
         )
+        return
 
-    reservations = []
-    for _ in range(num_res):
-        room_id = random.choice(room_ids)
-        start = datetime.now() - timedelta(days=random.randint(0, 60))
-        nights = random.randint(1, 7)
-        reservations.append(
-            Reservation(
-                room_id=room_id,
-                guest_name=fake.name(),
-                checkin=start.date(),
-                checkout=(start + timedelta(days=nights)).date(),
-            )
-        )
+    days = defaultdict(list)
+    for slot in slots:
+        day_key = (slot.service_id, slot.start_time.date())
+        days[day_key].append(slot)
 
-    session.bulk_save_objects(reservations)
+    bookings = []
+    for (svc_id, date), day_slots in days.items():
+        if random.random() < FULL_DAY_PROB:
+            fill_rate = 1.0
+        else:
+            fill_rate = random.uniform(0, MAX_FILL_RATE)
+        for slot in day_slots:
+            cap = slot.capacity
+            num = random.randint(0, int(cap * fill_rate))
+            for _ in range(num):
+                bookings.append(Booking(slot_id=slot.id, guest_name=fake.name()))
+
+    session.bulk_save_objects(bookings)
     session.commit()
-    print(f"Generadas {len(reservations)} reservas.")
+    print(
+        f"Generadas {len(bookings)} reservas de prueba con llenado diario basado en probabilidades."
+    )
 
 
 def main():
     session = get_session()
-
-    if not session.query(Room).first():
-        generate_rooms(session, total_rooms=50)
-
-    generate_reservations(session, num_res=100)
+    generate_services(session)
+    generate_slots(session)
+    generate_bookings(session)
     session.close()
-
-    print(f"Base de datos mock creada/actualizada en {DB_URL}.")
+    print("Mock de datos de servicios creado/actualizado.")
 
 
 if __name__ == "__main__":

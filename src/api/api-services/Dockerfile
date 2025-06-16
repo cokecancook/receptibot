@@ -6,13 +6,13 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY api/api-booking/requirements.txt .
+COPY api/api-services/requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY generator/ ./generator/
 
-COPY api/api-booking/ .
+COPY api/api-services/ .
 
 EXPOSE 8000
 
