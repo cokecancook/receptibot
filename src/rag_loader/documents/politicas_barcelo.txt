@@ -1,0 +1,118 @@
+---
+hotel_id: generico
+idioma: es
+tipo_doc: politicas_detalladas
+fecha_actualizacion: 2025-06-16
+fuente: generativo
+seccion: politicas
+---
+
+# POLÍTICAS GENERALES – HOTELES BARCELÓ
+
+## 1. Política de reservas y cancelación
+- **Modalidades de reserva:** Flexible, semi‑flexible, no reembolsable y prepago total.  
+- **Plazos de cancelación gratuita:**  
+  - Flexible: hasta 48 h antes de la llegada (18:00 h, hora local).  
+  - Semi‑flexible: hasta 7 días antes de la llegada.  
+  - No reembolsable/prepago: sin derecho a devolución.  
+- **Cargos por cancelación tardía o no presentación (no‑show):** 100 % de la estancia o la primera noche según tarifa contratada.  
+- **Modificaciones:** Sujetas a disponibilidad y diferencia tarifaria.  
+- **Confirmaciones:** Se envían por correo electrónico con número de localizador único.
+
+## 2. Check‑in y check‑out
+- **Horario estándar de check‑in:** 15:00 h.  
+- **Horario estándar de check‑out:** 12:00 h.  
+- **Early check‑in / late check‑out:** Bajo petición y con coste adicional (gratis para socios _myBarceló_ Premium, sujeto a disponibilidad).  
+- **Documentación requerida:** Pasaporte o DNI válido de todos los huéspedes mayores de 14 años.  
+- **Depósito de garantía:** Se solicita tarjeta de crédito; el hotel puede bloquear un importe igual a la primera noche o 100 € (lo que sea mayor) para cubrir extras.
+
+## 3. Política de pagos y depósitos
+- **Métodos aceptados:** Visa, Mastercard, AmEx, Diners, JCB, Maestro, Apple Pay, Google Pay y efectivo (EUR/USD, en hoteles que lo permitan).  
+- **Tokenización y seguridad:** Cumplimiento PCI‑DSS; autenticación reforzada (3‑D Secure) en pagos online.  
+- **Depósito reembolsable:** Se libera en un plazo de 3–10 días laborables tras la salida, dependiendo de la entidad emisora.  
+
+## 4. Política de edad mínima
+- **Huésedes sin tutor legal:** Edad mínima 18 años.  
+- **Menores acompañados:** Gratuidad para menores de 2 años; tarifas reducidas de 2–12 años.  
+- **Literas/cunas:** Bajo disponibilidad; incluye kit de seguridad infantil.
+
+## 5. Política de huéspedes adicionales y ocupación
+- **Capacidad máxima por tipología:**  
+  - Habitación Doble: 2 adultos + 1 niño (≤12 años).  
+  - Junior Suite: 3 adultos o 2 adultos + 2 niños.  
+- **Cama supletoria:** 35 €/noche (gratuita para socios _myBarceló_ Plus).  
+- **Cunas:** Sin cargo (previa solicitud).
+
+## 6. Política de mascotas
+- **Hoteles pet‑friendly:** Sólo los clasificados como “Barceló Pet Experience”.  
+- **Peso/tamaño máximo:** 12 kg y 45 cm de altura a la cruz.  
+- **Tarifa:** 25 €/mascota/noche + 100 € de depósito por daños.  
+- **Zonas restringidas:** Restaurantes, spa, piscina y gimnasio.  
+- **Responsabilidad:** El propietario asume daños y molestias; se puede requerir seguro de responsabilidad civil.
+
+## 7. Política de fumadores
+- **Hoteles 100 % libres de humo:** Aplicable a habitaciones y áreas comunes interiores.  
+- **Espacios habilitados:** Terrazas exteriores señalizadas.  
+- **Cargo de limpieza por incumplimiento:** 250 € por estancia.  
+- **Dispositivos electrónicos:** Se consideran “vapeo” y siguen la misma normativa.
+
+## 8. Política ambiental y sostenibilidad
+- **Certificaciones activas:** Biosphere Sustainable, Travelife Gold o equivalente, según hotel.  
+- **Gestión de recursos:**  
+  - Reductores de caudal y sensores de movimiento en luminarias.  
+  - Calentadores de agua con energía renovable (aerotermia/solar).  
+- **Residuos:** Reciclaje en origen; eliminación de plásticos de un solo uso.  
+- **Reutilización de toallas:** Programa voluntario con señalética en habitación.  
+- **Formación:** Personal capacitado en prácticas ESG y emergencias ambientales.
+
+## 9. Accesibilidad
+- **Habitaciones adaptadas:** ≥4 % del inventario, con puertas de 90 cm, duchas a ras de suelo y barras de apoyo.  
+- **Áreas comunes:** Ascensores con sistema braille, rampas ≤6 %, baños adaptados en lobby y restaurantes.  
+- **Equipamiento disponible:** Sillas anfibias en piscina, despertadores con vibración, bucle magnético en recepción (bajo petición).
+
+## 10. Política de objetos perdidos
+- **Custodia:** 90 días para objetos de valor, 30 días para prendas.  
+- **Envío:** A cargo del huésped mediante servicio de mensajería certificado.  
+- **Datos personales:** Eliminación segura conforme a RGPD antes de desechar dispositivos electrónicos abandonados.
+
+## 11. Seguridad y emergencia
+- **Protección contra incendios:** Detectores fotoeléctricos, rociadores y extintores clase ABC en pasillos cada 25 m.  
+- **Simulacros:** Semestrales con personal y brigadas contraincendios internas.  
+- **Vigilancia CCTV:** 24/7 en zonas estratégicas; imágenes almacenadas 30 días.  
+- **Plan de evacuación:** Mapas en puerta de habitación y señalización fotoluminiscente.
+
+## 12. Protección de datos (RGPD)
+- **Responsable del tratamiento:** Barceló Management SL.  
+- **Finalidad:** Gestión de reservas, facturación, fidelización y comunicaciones promocionales (previo consentimiento).  
+- **Derechos ARSULIPO:** Acceso, Rectificación, Supresión, Limitación, Portabilidad y Oposición a través de dpo@barcelo.com.  
+- **Conservación:** 6 años para datos fiscales; 5 años para historiales de estancia; 3 años para CV.  
+
+## 13. Política de consumo responsable de alcohol
+- **Edad legal:** 18 años (España); hoteles internacionales se adaptan a la legislación local.  
+- **Control de servicio:** “Safe Serving Programme”; se puede denegar el servicio a huéspedes en estado de embriaguez.
+
+## 14. Política sobre ruidos y comportamiento
+- **Horas de silencio:** 23:00–07:00 h.  
+- **Eventos privados:** Deben concluir música en directo a las 22:00 h en espacios exteriores y 00:00 h en salones con aislamiento acústico.  
+- **Conducta inapropiada:** Causa de desalojo sin reembolso.
+
+## 15. Política de overbooking
+- **Procedimiento:**  
+  1. Ofrecer reubicación en hotel de igual o superior categoría dentro de la cadena o asociado.  
+  2. Asumir transfer y diferencia de tarifa.  
+  3. Compensación adicional: upgrade a régimen superior o voucher de 100 € para futura estancia.  
+
+## 16. Política de reclamaciones y resolución de conflictos
+- **Hoja de reclamaciones:** Disponible en recepción, formato físico y QR.  
+- **ADR/ODR:** Adhesión al Sistema Arbitral de Consumo y a la plataforma europea ODR.  
+- **Plazo de respuesta:** ≤15 días hábiles.
+
+## 17. Programa _myBarceló_
+- **Niveles:** Origen, Explorer, Expert, Genius, Unique (según noches/€ acumulados).  
+- **Beneficios:** Descuentos directos hasta 20 %, upgrade sujeto a disponibilidad, check‑in prioritario, Wi‑Fi Premium gratis, puntos canjeables 1 punto = 1 €.  
+- **Validez de puntos:** 24 meses tras la última actividad del socio.
+
+---
+
+**Última actualización:** 16 jun 2025  
+Para información adicional o excepciones locales, consulte la web oficial del hotel o contacte a atención al huésped (guest@barcelo.com).

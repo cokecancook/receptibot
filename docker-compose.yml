@@ -65,8 +65,97 @@ services:
       - postgres  
     restart: unless-stopped
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"  # Puerto gRPC (opcional)
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__WEB_UI__ENABLED=true  # Ya incluye interfaz web
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+  ollama:
+    build:
+      context: ./src/ollama
+      dockerfile: Dockerfile
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS=*
+      - MODELS_TO_DOWNLOAD=nomic-embed-text,all-minilm,llama3.2:1b
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - rag-network
+
+  rag-loader:
+    build:
+      context: ./src/rag_loader
+      dockerfile: Dockerfile
+    container_name: rag-loader
+    volumes:
+      - ./src/rag_loader/documents:/app/documents:ro
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - COLLECTION_NAME=documents
+      - EMBEDDING_MODEL=nomic-embed-text:latest
+      - CHUNK_SIZE=500
+      - CHUNK_OVERLAP=100
+    depends_on:
+      - qdrant
+      - ollama
+    restart: "no"
+    networks:
+      - rag-network
+  search-api:
+    build:
+      context: ./src/api/api_rag
+      dockerfile: Dockerfile
+    container_name: barcelo-search-api
+    ports:
+      - "8080:8080"
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - COLLECTION_NAME=documents
+      - EMBEDDING_MODEL=nomic-embed-text
+    depends_on:
+      - qdrant
+      - ollama
+    networks:
+      - rag-network
+    restart: unless-stopped
+
 networks:
   postgres:
+    driver: bridge
+  rag-network:
     driver: bridge
 
 volumes:
@@ -74,4 +163,6 @@ volumes:
   pgadmin:
   data:
   db_data:
+  qdrant_data:
+  ollama_data:
 
