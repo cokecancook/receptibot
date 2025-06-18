@@ -1,2 +1,4 @@
 requests
 langchain_core
+langgraph
+huggingface_hub
