@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copiar script de inicialización
 COPY ollama-init.sh /ollama-init.sh
-RUN chmod +x /ollama-init.sh
+RUN sed -i 's/\r$//' /ollama-init.sh && chmod +x /ollama-init.sh
 
 # Variables de entorno por defecto
 ENV OLLAMA_ORIGINS=*
