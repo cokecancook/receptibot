@@ -108,7 +108,6 @@ services:
             - driver: nvidia
               capabilities: [ gpu ]
               count: all
-
     volumes:
       - ollama_data:/root/.ollama
     environment:
