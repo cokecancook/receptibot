@@ -101,6 +101,14 @@ services:
     container_name: ollama
     ports:
       - "11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [ gpu ]
+              count: all
+
     volumes:
       - ollama_data:/root/.ollama
     environment:
