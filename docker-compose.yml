@@ -106,8 +106,8 @@ services:
         reservations:
           devices:
             - driver: nvidia
+              capabilities: [ gpu ]
               count: all
-              capabilities: [ "gpu" ]
     volumes:
       - ollama_data:/root/.ollama
     environment:
