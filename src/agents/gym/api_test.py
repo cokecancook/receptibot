@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import requests
 
 #import @tools from tools.py
-from agents.gym.tools import check_gym_availability
+from tools import check_gym_availability
 
 today = datetime.now().isoformat()
 today_day = today.split("T")[0]
