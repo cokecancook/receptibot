@@ -9,7 +9,7 @@ from langgraph.graph import END, StateGraph
 
 from .config import OLLAMA_MODEL_NAME
 from .state import AgentState, get_current_agent_scratchpad, update_state_after_llm, update_state_after_tool
-from .prompts import RAG_SYSTEM_PROMPT
+from .prompt import RAG_SYSTEM_PROMPT
 
 import logging
 logger = logging.getLogger(__name__)
