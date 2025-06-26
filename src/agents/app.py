@@ -10,7 +10,7 @@ from agent.helpers import check_ollama_connection
 from agent.tools import check_gym_availability, book_gym_slot
 from agent.graph_nodes import call_llm, call_tools, add_tool_outputs_to_messages
 
-model = "qwen3:1.7b"
+model = "qwen3:8b"
 
 tools = [check_gym_availability, book_gym_slot]
 
