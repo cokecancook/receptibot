@@ -112,7 +112,7 @@ services:
       - ollama_data:/root/.ollama
     environment:
       - OLLAMA_ORIGINS=*
-      - MODELS_TO_DOWNLOAD=nomic-embed-text,all-minilm,qwen3:8b
+      - MODELS_TO_DOWNLOAD=nomic-embed-text,all-minilm,caporti/qwen3-capor
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
       interval: 30s

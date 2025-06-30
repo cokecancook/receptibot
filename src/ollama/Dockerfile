@@ -12,7 +12,7 @@ RUN sed -i 's/\r$//' /ollama-init.sh && chmod +x /ollama-init.sh
 
 # Variables de entorno por defecto
 ENV OLLAMA_ORIGINS=*
-ENV MODELS_TO_DOWNLOAD="nomic-embed-text,all-minilm,qwen3:8b"
+ENV MODELS_TO_DOWNLOAD="nomic-embed-text,all-minilm,caporti/qwen3-capor"
 
 EXPOSE 11434
 
