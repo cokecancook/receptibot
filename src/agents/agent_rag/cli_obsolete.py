@@ -28,12 +28,9 @@ def main():
     try:
         rag_agent_instance = RagAgent(tools=ALL_TOOLS_LIST)
         logger.info("✅ Agente RAG inicializado exitosamente con todas las herramientas.")
+        thread_id_counter = 0
         
-        # Use a single thread ID for the entire conversation
-        current_thread_id = "rag-cli-conversation"
-        config = {"configurable": {"thread_id": current_thread_id}}
-        
-        # Initialize conversation state
+        # Inicializar el estado para el primer turno de cada conversación
         current_conversation_state = {
             "messages": [],
             "gym_slot_iso_to_book": None,
@@ -41,39 +38,27 @@ def main():
             "pending_gym_slot_confirmation": False,
         }
 
-        print(f"\n--- Conversación (ID: {current_thread_id}) ---")
-        print("Escribe 'nueva' para iniciar una nueva conversación, 'salir' para terminar.")
-
         while True:
-            try: 
-                user_input = input("👤 Tú: ")
-            except KeyboardInterrupt: 
-                print("\n👋 Saliendo..."); 
-                break
-            
-            if user_input.lower() in ["salir", "exit", "quit"]: 
-                print("👋 ¡Adiós!"); 
-                break
-            
-            if user_input.lower() == "nueva":
-                # Reset conversation state for new conversation
-                current_conversation_state = {
-                    "messages": [],
+            thread_id_counter += 1
+            current_thread_id = f"rag-cli-{thread_id_counter}"
+            config = {"configurable": {"thread_id": current_thread_id}}
+            if thread_id_counter > 1: # Reiniciar estado para una "nueva" simulación de conversación
+                 current_conversation_state = {
+                    "messages": [], # El historial de mensajes se obtendrá del checkpointer
                     "gym_slot_iso_to_book": None,
                     "user_name_for_gym_booking": None,
                     "pending_gym_slot_confirmation": False,
                 }
-                # Clear the graph state for new conversation
-                rag_agent_instance.graph.clear_state(config)
-                print(f"\n--- Nueva Conversación (ID: {current_thread_id}) ---")
-                continue
-            
-            if not user_input.strip(): 
-                continue
+
+            print(f"\n--- Conversación (ID: {current_thread_id}) ---")
+            try: user_input = input("👤 Tú: ")
+            except KeyboardInterrupt: print("\n👋 Saliendo..."); break
+            if user_input.lower() in ["salir", "exit", "quit"]: print("👋 ¡Adiós!"); break
+            if not user_input.strip(): continue
 
             logger.info(f"📬 Usuario: '{user_input}' (Thread: {current_thread_id})")
             
-            # The input for the graph stream should be the complete state or the parts that update the state.
+            # El input para el stream del grafo debe ser el estado completo o las partes que actualizan el estado.
             input_for_graph = {
                 "messages": [HumanMessage(content=user_input)],
                 "gym_slot_iso_to_book": current_conversation_state["gym_slot_iso_to_book"],
@@ -85,26 +70,26 @@ def main():
             final_event_state = None
             try:
                 for event in rag_agent_instance.graph.stream(input_for_graph, config=config, stream_mode="values"):
-                    # The last "values" event will have the final state of that stream execution
+                    # El último evento "values" tendrá el estado final de esa ejecución del stream
                     final_event_state = event 
                 
-                # Update our local conversation state with the final graph state
+                # Actualizar nuestro estado de conversación local con el estado final del grafo
                 if final_event_state:
                     current_conversation_state["gym_slot_iso_to_book"] = final_event_state.get("gym_slot_iso_to_book")
                     current_conversation_state["user_name_for_gym_booking"] = final_event_state.get("user_name_for_gym_booking")
                     current_conversation_state["pending_gym_slot_confirmation"] = final_event_state.get("pending_gym_slot_confirmation")
-                    # Messages are automatically updated by MemorySaver and the add operator
+                    # Los mensajes se actualizan automáticamente por MemorySaver y el operador add
 
             except Exception as stream_err:
                 logger.error(f"❌ Error en stream: {stream_err}\n{traceback.format_exc()}")
                 final_ai_response_content = "Error procesando solicitud."
             
-            # Get the final response from the UPDATED message history from the checkpointer
-            final_graph_state_after_stream = rag_agent_instance.graph.get_state(config) # Persisted state
+            # Obtener la respuesta final del historial de mensajes ACTUALIZADO del checkpointer
+            final_graph_state_after_stream = rag_agent_instance.graph.get_state(config) # Estado persistido
             if final_graph_state_after_stream and final_graph_state_after_stream.values['messages']:
                 final_agent_message = final_graph_state_after_stream.values['messages'][-1]
                 
-                # Clean <think> tags from the final response if it's an AIMessage
+                # Limpiar <think> tags de la respuesta final si es un AIMessage
                 if isinstance(final_agent_message, AIMessage) and isinstance(final_agent_message.content, str):
                     cleaned_content = re.sub(r"<think>.*?</think>\s*\n?", "", final_agent_message.content, flags=re.DOTALL).strip()
                 else:
@@ -115,7 +100,7 @@ def main():
                     final_ai_response_content = cleaned_content
                 elif isinstance(final_agent_message, AIMessage) and final_agent_message.tool_calls:
                     final_ai_response_content = f"(Agente usó herramienta: {final_agent_message.tool_calls[0]['name']}. Esperando siguiente paso o respuesta procesada...)"
-                    if cleaned_content: # If there's content besides the tool_call (like <think>)
+                    if cleaned_content: # Si hay contenido además de la tool_call (como el <think>)
                         final_ai_response_content += f"\nRazonamiento: {cleaned_content}"
                 elif isinstance(final_agent_message, ToolMessage):
                      final_ai_response_content = f"(Agente procesó herramienta: {final_agent_message.name}. Contenido: {str(final_agent_message.content)[:100]}...)"

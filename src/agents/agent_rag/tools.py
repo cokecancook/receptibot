@@ -1,22 +1,5 @@
-import operator
-import os
 import traceback
-from typing import Annotated, TypedDict, List, Optional
-import uuid
-from datetime import datetime, timedelta
-import re
-
-# Langchain core y Ollama
-from langchain_core.messages import AnyMessage, HumanMessage, SystemMessage, ToolMessage, AIMessage
 from langchain_core.tools import tool
-from langchain_ollama import ChatOllama
-from langchain_core.utils.function_calling import convert_to_openai_tool
-
-# Langgraph
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, StateGraph
-
-# Para las herramientas
 import requests
 import json
 
@@ -53,8 +36,10 @@ def external_rag_search_tool(query: str, limit: int = 3, score_threshold: float 
             logger.warning(f"⚠️ Servicio RAG: sin resultados o formato inesperado para query '{query}'. Respuesta: {search_data}")
     except requests.exceptions.HTTPError as http_err:
         error_details_str = http_err.response.text
-        try: error_details_str = json.dumps(http_err.response.json())
-        except ValueError: pass
+        try:
+            error_details_str = json.dumps(http_err.response.json())
+        except ValueError:
+            pass
         logger.error(f"❌ Error HTTP {http_err.response.status_code} llamando a RAG: {error_details_str}")
         retrieved_info = f"Error al contactar RAG (HTTP {http_err.response.status_code})"
     except requests.exceptions.RequestException as req_err:
