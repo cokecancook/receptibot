@@ -6,6 +6,7 @@ from langchain_ollama import ChatOllama
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, StateGraph
+from src.utils.metriclogger import MetricLogger
 
 from .config import OLLAMA_MODEL_NAME
 from .state import AgentState, get_current_agent_scratchpad, update_state_after_llm, update_state_after_tool
@@ -77,9 +78,11 @@ class RagAgent:
         if hasattr(last_message, 'tool_calls') and isinstance(last_message.tool_calls, list) and last_message.tool_calls:
             tool_name = last_message.tool_calls[0].get('name', 'N/A')
             if tool_name in self._tools_map:
+                MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'agent_decision_invoke_tool:{tool_name}', 1)
                 logger.info(f"    [Router] LLM solicitó herramienta vía .tool_calls: '{tool_name}'.")
                 return 'invoke_tool'
             else:
+                MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'agent_decision_unknown_tool:{tool_name}', 1)
                 logger.warning(f"    [Router] LLM solicitó herramienta desconocida vía .tool_calls: '{tool_name}'. Ignorando.")
                 last_message.tool_calls = []
                 return 'respond_directly'
@@ -92,14 +95,17 @@ class RagAgent:
                     tool_name = content_json["tool"]
                     tool_args = content_json["tool_input"]
                     if tool_name in self._tools_map and isinstance(tool_args, dict):
+                        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'agent_decision_invoke_tool_workaround:{tool_name}', 1)
                         logger.warning(f"    [Router WORKAROUND] Detectada llamada a herramienta '{tool_name}' en .content.")
                         last_message.tool_calls = [{"name": tool_name, "args": tool_args, "id": f"qwen_tc_{uuid.uuid4().hex}"}]
                         last_message.content = "" 
                         logger.info(f"    [Router WORKAROUND] .tool_calls reconstruido: {last_message.tool_calls}")
                         return 'invoke_tool'
                     else:
+                        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'agent_decision_unknown_tool_workaround:{tool_name}', 1)
                         logger.warning(f"    [Router WORKAROUND] JSON en .content parece tool_call pero nombre ('{tool_name}') desconocido o args no dict.")
                 elif isinstance(content_json, dict) and "answer" in content_json:
+                    MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, 'agent_decision_respond_directly_json', 1)
                     logger.info("    [Router] LLM devolvió JSON con 'answer', tratando como respuesta directa.")
                     last_message.content = content_json["answer"]
                     last_message.tool_calls = []
@@ -109,6 +115,7 @@ class RagAgent:
             except Exception as e:
                 logger.error(f"    [Router WORKAROUND] Error inesperado procesando content_json: {e}\n{traceback.format_exc()}")
 
+        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, 'agent_decision_respond_directly', 1)
         logger.info(f"    [Router] LLM no solicitó herramienta. tool_calls: {getattr(last_message, 'tool_calls', 'N/A')}, content: '{str(last_message.content)[:100]}...'")
         return 'respond_directly'
 
