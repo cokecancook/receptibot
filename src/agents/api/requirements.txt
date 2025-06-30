@@ -1,0 +1,8 @@
+Flask
+gunicorn
+psycopg2-binary
+langchain_core
+langchain-ollama
+langchain_community
+langgraph
+qdrant-client
