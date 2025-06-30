@@ -25,6 +25,27 @@ services:
       - postgres
     restart: unless-stopped
 
+  redis:
+    container_name: redis_container
+    build:
+      context: ./src/redis
+      dockerfile: Dockerfile
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_password}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "redis_password", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - rag-network
+      - postgres
+    restart: unless-stopped
   database_generator:
     container_name: database_generator_container
     build:
@@ -77,13 +98,13 @@ services:
     container_name: qdrant
     ports:
       - "6333:6333"
-      - "6334:6334" # Puerto gRPC (opcional)
+      - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
     environment:
       - QDRANT__SERVICE__HTTP_PORT=6333
       - QDRANT__SERVICE__GRPC_PORT=6334
-      - QDRANT__WEB_UI__ENABLED=true # Ya incluye interfaz web
+      - QDRANT__WEB_UI__ENABLED=true
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:6333/health" ]
       interval: 30s
@@ -179,5 +200,4 @@ volumes:
   db_data:
   qdrant_data:
   ollama_data:
-
-
+  redis_data:
