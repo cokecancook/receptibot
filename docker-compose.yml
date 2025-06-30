@@ -189,8 +189,8 @@ services:
 
   agent-api:
     build:
-      context: ./src/agents/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/agents/api/Dockerfile
     container_name: agent-api
     ports:
       - "8001:8000"
