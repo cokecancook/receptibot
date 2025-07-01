@@ -7,7 +7,7 @@ from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from langchain_core.utils.function_calling import convert_to_openai_tool
 import os
-from langchain_postgres import PostgresSaver
+from langgraph_postgres import PostgresSaver
 from langgraph.graph import END, StateGraph
 from src.utils.metriclogger import MetricLogger
 
