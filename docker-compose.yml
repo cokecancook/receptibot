@@ -192,7 +192,7 @@ services:
       dockerfile: src/agents/api/Dockerfile
     container_name: agent-api
     ports:
-      - "8001:8000"
+      - "8081:8081"
     environment:
       - QDRANT_HOST=qdrant
       - QDRANT_PORT=6333
