@@ -2,8 +2,8 @@ import os
 import logging
 from flask import Flask, request, jsonify
 from langchain_core.messages import HumanMessage
-from src.agents.agent_rag.agent import RagAgent
-from src.agents.agent_rag.tools import ALL_TOOLS_LIST
+from src.agents.modules.agent import RagAgent
+from src.agents.modules.tools import ALL_TOOLS_LIST
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
