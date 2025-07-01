@@ -4,7 +4,7 @@ import requests
 import json
 
 # The URL of the running agent API
-API_URL = "http://localhost:8001/chat"
+API_URL = "http://localhost:8081/chat"
 
 # The data to send in the request
 payload = {
