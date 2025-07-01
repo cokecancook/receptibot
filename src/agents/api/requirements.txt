@@ -2,7 +2,7 @@ Flask
 Flask-Cors
 gunicorn
 psycopg[binary]
-langchain-postgres
+langgraph-postgres
 langchain_core
 langchain-ollama
 langchain_community
