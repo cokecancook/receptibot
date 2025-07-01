@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import SQLAlchemyError
 
 DB_CONFIG = {
-    'host': 'localhost',
+    'host': 'postgres',
     'port': 5432,
     'database': 'postgres',
     'username': 'postgres',

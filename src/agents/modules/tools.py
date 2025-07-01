@@ -2,8 +2,9 @@ import traceback
 from langchain_core.tools import tool
 import requests
 import json
+from datetime import datetime
 
-from .config import RAG_SERVICE_URL, GYM_API_URL
+from .config import RAG_SERVICE_URL, GYM_API_URL, OLLAMA_MODEL_NAME
 
 import logging
 logger = logging.getLogger(__name__)
@@ -72,17 +73,16 @@ def check_gym_availability(target_date: str) -> str:
             if isinstance(slots_data, list) and slots_data:
                 start_times = [slot.get("start_time") for slot in slots_data if slot.get("start_time")][:5]
                 if start_times:
-                    # Devolver el slot original pedido si está en la lista, para facilitar la confirmación
                     if target_date in start_times:
-                         return f"El horario {target_date} está disponible. Otros horarios cercanos disponibles: {json.dumps(start_times)}"
+                        return f"El horario {target_date} está disponible. Otros horarios cercanos disponibles: {json.dumps(start_times)}"
                     return f"Horarios disponibles encontrados para el gimnasio cerca de {target_date}: {json.dumps(start_times)}"
-                else: # Slots_data no contenía start_time válidos
+                else:
                     return f"No se encontraron horarios específicos con 'start_time' en la respuesta para {target_date}. Respuesta API: {json.dumps(slots_data)[:200]}"
-            elif isinstance(slots_data, list) and not slots_data: # Lista vacía
+            elif isinstance(slots_data, list) and not slots_data:
                 return f"No hay horarios disponibles en el gimnasio para la fecha y hora especificadas ({target_date})."
-            else: # Respuesta no es una lista o es inesperada
-                 return f"Respuesta inesperada del API de disponibilidad (no es una lista de slots o está malformada): {json.dumps(slots_data)[:200]}"
-        else: # Error HTTP
+            else:
+                return f"Respuesta inesperada del API de disponibilidad (no es una lista de slots o está malformada): {json.dumps(slots_data)[:200]}"
+        else:
             logger.warning(f"Check Gym Availability: API devolvió {response.status_code}. Respuesta: {response.text[:200]}")
             return f"No se pudo verificar la disponibilidad para el gimnasio en {target_date} (código: {response.status_code}). Respuesta API: {response.text[:200]}"
     except requests.exceptions.RequestException as e:

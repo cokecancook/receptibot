@@ -1,5 +1,5 @@
 # tool_agent.py - Simplified version with modules extracted
-from agent_rag import main
+from modules import main
 
 import logging
 

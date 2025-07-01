@@ -64,7 +64,7 @@ services:
     container_name: hotel_api_container
     build:
       context: ./src
-      dockerfile: api/api-services/Dockerfile
+      dockerfile: api/api_services/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/hotel_barcelo_db}
       FLASK_ENV: ${FLASK_ENV:-development}
@@ -184,6 +184,35 @@ services:
       - ollama
     networks:
       - rag-network
+    restart: unless-stopped
+
+  agent-api:
+    build:
+      context: .
+      dockerfile: src/agents/api/Dockerfile
+    container_name: agent-api
+    ports:
+      - "8081:8081"
+    environment:
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - COLLECTION_NAME=documents
+      - EMBEDDING_MODEL=nomic-embed-text
+      - GYM_API_URL=http://api:8000
+      - RAG_SERVICE_URL=http://search-api:8080/
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/hotel_barcelo_db
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      api:
+        condition: service_completed_successfully
+    networks:
+      - rag-network
+      - postgres
     restart: unless-stopped
 
 networks:
