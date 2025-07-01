@@ -19,7 +19,7 @@ def external_rag_search_tool(query: str, limit: int = 3, score_threshold: float 
     NO la uses para consultar disponibilidad o hacer reservas de servicios específicos como el gimnasio.
     La entrada 'query' debe ser la pregunta del usuario.
     """
-    MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, 'tool_called:external_rag_search_tool', 1)
+    MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, 'tool_called:external_rag_search_tool', 1)
     logger.info(f"🛠️ Herramienta RAG Externa llamada con: query='{query}', limit={limit}, threshold={score_threshold}")
     search_endpoint = f"{RAG_SERVICE_URL}/search"
     payload = {"query": query, "limit": limit, "score_threshold": score_threshold}
@@ -52,7 +52,7 @@ def external_rag_search_tool(query: str, limit: int = 3, score_threshold: float 
         logger.error(f"❌ Error inesperado en RAG: {e}\n{traceback.format_exc()}")
         retrieved_info = f"Error inesperado en RAG: {str(e)}"
     logger.info(f"📤 Herramienta RAG devolviendo (primeros 200 chars): {retrieved_info[:200]}...")
-    MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:external_rag_search_tool', 1)
+    MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:external_rag_search_tool', 1)
     return retrieved_info
 
 @tool
@@ -65,7 +65,7 @@ def check_gym_availability(target_date: str) -> str:
                    Si el usuario solo da una fecha, puedes asumir T08:00:00 para ver los primeros horarios disponibles de ese día.
     Devuelve una lista de horarios disponibles o un mensaje si no hay disponibilidad. Esta herramienta es de solo lectura y no hace reservas.
     """
-    MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, 'tool_called:check_gym_availability', 1)
+    MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, 'tool_called:check_gym_availability', 1)
     logger.info(f"🛠️ Herramienta Check Gym Availability llamada con: target_date='{target_date}'")
     url = f"{GYM_API_URL}/availability"
     payload = {"service_name": "gimnasio", "start_time": target_date}
@@ -78,30 +78,30 @@ def check_gym_availability(target_date: str) -> str:
                 start_times = [slot.get("start_time") for slot in slots_data if slot.get("start_time")][:5]
                 if start_times:
                     if target_date in start_times:
-                        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+                        MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
                         return f"El horario {target_date} está disponible. Otros horarios cercanos disponibles: {json.dumps(start_times)}"
-                    MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+                    MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
                     return f"Horarios disponibles encontrados para el gimnasio cerca de {target_date}: {json.dumps(start_times)}"
                 else:
-                    MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+                    MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
                     return f"No se encontraron horarios específicos con 'start_time' en la respuesta para {target_date}. Respuesta API: {json.dumps(slots_data)[:200]}"
             elif isinstance(slots_data, list) and not slots_data:
-                MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+                MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
                 return f"No hay horarios disponibles en el gimnasio para la fecha y hora especificadas ({target_date})."
             else:
-                MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+                MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
                 return f"Respuesta inesperada del API de disponibilidad (no es una lista de slots o está malformada): {json.dumps(slots_data)[:200]}"
         else:
             logger.warning(f"Check Gym Availability: API devolvió {response.status_code}. Respuesta: {response.text[:200]}")
-            MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+            MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
             return f"No se pudo verificar la disponibilidad para el gimnasio en {target_date} (código: {response.status_code}). Respuesta API: {response.text[:200]}"
     except requests.exceptions.RequestException as e:
         logger.error(f"❌ Error de red en Check Gym Availability: {e}")
-        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+        MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
         return f"Error de red al verificar disponibilidad del gimnasio: {str(e)}"
     except Exception as e: # Otros errores (ej. JSONDecodeError si la respuesta no es JSON)
         logger.error(f"❌ Error inesperado en Check Gym Availability: {e}\n{traceback.format_exc()}")
-        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
+        MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:check_gym_availability', 1)
         return f"Error inesperado al verificar disponibilidad del gimnasio: {str(e)}"
 
 @tool
@@ -114,7 +114,7 @@ def book_gym_slot(booking_date: str, user_name: str) -> str:
     - booking_date: Una cadena en formato ISO 8601 (YYYY-MM-DDTHH:MM:SS) representando la fecha y hora exactas a reservar.
     - user_name: El nombre completo de la persona que hace la reserva. Esto DEBE ser proporcionado por el usuario antes de llamar a esta herramienta.
     """
-    MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, 'tool_called:book_gym_slot', 1)
+    MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, 'tool_called:book_gym_slot', 1)
     logger.info(f"🛠️ Herramienta Book Gym Slot llamada para {user_name} en {booking_date}.")
     avail_url = f"{GYM_API_URL}/availability"
     avail_payload = {"service_name": "gimnasio", "start_time": booking_date}
@@ -139,7 +139,7 @@ def book_gym_slot(booking_date: str, user_name: str) -> str:
                 # Devolver los primeros slots disponibles como sugerencia puede ser útil
                 sugerencias = [s.get("start_time") for s in slots if s.get("start_time")][:3]
                 sugerencias_str = f" Horarios alternativos cercanos podrían ser: {', '.join(sugerencias)}." if sugerencias else ""
-                MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
+                MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
                 return (f"El horario deseado {booking_date} no está disponible o no se pudo confirmar.{sugerencias_str} "
                         f"Por favor, primero verifica la disponibilidad general con 'check_gym_availability'.")
         else:
@@ -153,24 +153,24 @@ def book_gym_slot(booking_date: str, user_name: str) -> str:
         if book_response.status_code == 201:
             booking_data = book_response.json()
             logger.info(f"Reserva exitosa: {booking_data}")
-            MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
+            MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
             return (f"Reserva exitosa para {booking_data.get('guest_name')} en el gimnasio. "
                     f"ID de la reserva: {booking_data.get('booking_id', 'No proporcionado')}, Slot ID: {booking_data.get('slot_id')}, Hora: {booking_date}.")
         elif book_response.status_code == 409:
             logger.warning(f"Conflicto de reserva para slot ID {slot_id_to_book}: {book_response.text[:200]}")
-            MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
+            MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
             return f"Conflicto de reserva: El horario {booking_date} (slot ID: {slot_id_to_book}) ya está reservado o lleno."
         else:
             logger.error(f"Fallo la reserva (código {book_response.status_code}): {book_response.text[:200]}")
-            MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
+            MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
             return f"Fallo la reserva del gimnasio (código {book_response.status_code}): {book_response.text[:200]}"
     except requests.exceptions.RequestException as e:
         logger.error(f"❌ Error de red en Book Gym Slot: {e}")
-        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
+        MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
         return f"Error de red al intentar reservar el gimnasio: {str(e)}"
     except Exception as e:
         logger.error(f"❌ Error inesperado en Book Gym Slot: {e}\n{traceback.format_exc()}")
-        MetricLogger().log_metric(datetime.utcnow(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
+        MetricLogger().log_metric(datetime.now(), OLLAMA_MODEL_NAME, f'tool_return:book_gym_slot', 1)
         return f"Error inesperado al intentar reservar el gimnasio: {str(e)}"
 
 ALL_TOOLS_LIST = [external_rag_search_tool, check_gym_availability, book_gym_slot] 
