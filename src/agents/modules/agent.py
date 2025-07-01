@@ -6,7 +6,8 @@ from datetime import datetime
 from langchain_core.messages import SystemMessage, AIMessage, ToolMessage
 from langchain_ollama import ChatOllama
 from langchain_core.utils.function_calling import convert_to_openai_tool
-from langgraph.checkpoint.memory import MemorySaver
+import os
+from langchain_postgres import PostgresSaver
 from langgraph.graph import END, StateGraph
 from src.utils.metriclogger import MetricLogger
 
@@ -38,26 +39,23 @@ class RagAgent:
         workflow = StateGraph(AgentState)
         workflow.add_node('call_llm', self.call_llm_node)
         workflow.add_node('invoke_tools_node', self.invoke_tools_node)
-        # Nuevo nodo para actualizar el estado después de la respuesta del LLM (antes de decidir la herramienta)
         workflow.add_node('update_state_after_llm', self.update_state_after_llm)
-        # Nuevo nodo para actualizar el estado después de la ejecución de la herramienta
         workflow.add_node('update_state_after_tool', self.update_state_after_tool)
 
         workflow.set_entry_point('call_llm')
         
-        # Flujo: LLM -> update_state_after_llm -> Router -> (Tool o END)
         workflow.add_edge('call_llm', 'update_state_after_llm')
         workflow.add_conditional_edges(
-            'update_state_after_llm', # El router ahora decide después de que el estado se haya actualizado con la última respuesta del LLM
+            'update_state_after_llm',
             self.should_invoke_tool_router,
             {'invoke_tool': 'invoke_tools_node', 'respond_directly': END}
         )
-        # Flujo: Tool -> update_state_after_tool -> LLM
         workflow.add_edge('invoke_tools_node', 'update_state_after_tool')
         workflow.add_edge('update_state_after_tool', 'call_llm')
 
-        self.graph = workflow.compile(checkpointer=MemorySaver())
-        logger.info("✅ Grafo del agente compilado con manejo de estado.")
+        self.checkpointer = PostgresSaver.from_conn_string(os.environ.get("DATABASE_URL"))
+        self.graph = workflow.compile(checkpointer=self.checkpointer)
+        logger.info("✅ Grafo del agente compilado con checkpointer PostgreSQL.")
 
     def update_state_after_llm(self, state: AgentState) -> AgentState:
         """Wrapper to call the state update function from the state module."""
