@@ -201,6 +201,7 @@ services:
       - COLLECTION_NAME=documents
       - EMBEDDING_MODEL=nomic-embed-text
       - GYM_API_URL=http://api:8000
+      - RAG_SERVICE_URL=http://search-api:8080/
       - DATABASE_URL=postgresql+psycopg://postgres:postgres@postgres:5432/hotel_barcelo_db
     depends_on:
       qdrant:
