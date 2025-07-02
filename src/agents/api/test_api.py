@@ -8,8 +8,8 @@ API_URL = "http://localhost:8081/chat"
 
 # The data to send in the request
 payload = {
-    "message": "cual es la politica de huespedes adicionales",
-    "thread_id": "python-test-02"
+    "message": "dime cosas sobre la politica de edad minima",
+    "thread_id": "python-test-01"
 }
 
 # Set the headers to indicate we are sending JSON

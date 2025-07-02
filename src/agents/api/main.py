@@ -2,11 +2,14 @@ import os
 import re
 import logging
 import time
+from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from src.agents.modules.agent import RagAgent
 from src.agents.modules.tools import ALL_TOOLS_LIST
 from src.agents.modules.redis_checkpointer import RedisCheckpointer
+from src.agents.modules.metriclogger import MetricLogger
+from src.agents.modules.config import OLLAMA_MODEL_NAME
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +20,7 @@ app = Flask(__name__)
 # Global variables
 agent_instance = None
 redis_checkpointer = None
+metric_logger = None
 
 def clean_agent_response(content):
     """Limpia tags de pensamiento y formatea la respuesta del agente."""
@@ -37,12 +41,21 @@ def validate_thread_id(thread_id):
         return False
     return True
 
+def log_execution_metric(metric_name: str, execution_time: float):
+    """Helper function para logging de métricas de ejecución"""
+    if metric_logger:
+        try:
+            timestamp = datetime.now(timezone.utc)
+            metric_logger.log_metric(timestamp, OLLAMA_MODEL_NAME, metric_name, execution_time)
+        except Exception as e:
+            logger.debug(f"Error registrando métrica {metric_name}: {e}")
+
 def initialize_agent():
     """
     Inicializa el RagAgent instance y el Redis checkpointer.
     Se llama antes de la primera request.
     """
-    global agent_instance, redis_checkpointer
+    global agent_instance, redis_checkpointer, metric_logger
     if agent_instance is None:
         try:
             logger.info("🚀 Inicializando RagAgent...")
@@ -50,6 +63,14 @@ def initialize_agent():
             
             # Inicializar checkpointer independiente para operaciones de gestión
             redis_checkpointer = RedisCheckpointer()
+            
+            # ✅ INICIALIZAR METRIC LOGGER
+            try:
+                metric_logger = MetricLogger()
+                logger.info("📊 MetricLogger inicializado correctamente")
+            except Exception as e:
+                logger.warning(f"⚠️ Error inicializando MetricLogger: {e}")
+                metric_logger = None
             
             logger.info("✅ RagAgent y RedisCheckpointer inicializados correctamente.")
         except Exception as e:
@@ -67,6 +88,9 @@ def chat_with_agent():
     Endpoint principal para interacción con el agente.
     Maneja persistencia automática de conversaciones.
     """
+    start_time = time.time()  # ✅ INICIO MÉTRICA TOTAL
+    tools_used = set()  # ✅ TRACKING DE HERRAMIENTAS USADAS
+    
     if agent_instance is None:
         return jsonify({"error": "Agente no inicializado."}), 503
 
@@ -81,7 +105,7 @@ def chat_with_agent():
     if len(message) > 2000:  # Límite razonable
         return jsonify({"error": "Mensaje demasiado largo (máximo 2000 caracteres)."}), 400
 
-    thread_id = data.get('thread_id', f'user-fab1an12-{time.time()}')
+    thread_id = data.get('thread_id', f'user-fab1an12-{int(time.time())}')
     
     # Validar thread_id
     if not validate_thread_id(thread_id):
@@ -105,10 +129,23 @@ def chat_with_agent():
             else:
                 logger.info(f"🆕 Nueva sesión iniciada para thread '{thread_id}'")
 
-        # Procesar con el agente (automáticamente carga y guarda en Redis)
+        # ✅ PROCESAR CON TRACKING DE HERRAMIENTAS
         final_event_state = None
         for event in agent_instance.graph.stream(input_for_graph, config=config, stream_mode="values"):
             final_event_state = event
+            # ✅ DETECTAR HERRAMIENTAS USADAS
+            if event.get('messages'):
+                for msg in event['messages']:
+                    if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                        for tool_call in msg.tool_calls:
+                            if isinstance(tool_call, dict) and 'name' in tool_call:
+                                tool_name = tool_call['name']
+                                if tool_name == 'external_rag_search_tool':
+                                    tools_used.add('rag')
+                                elif tool_name == 'check_gym_availability':
+                                    tools_used.add('availability')
+                                elif tool_name == 'book_gym_slot':
+                                    tools_used.add('booking')
             logger.debug(f"📊 Evento del stream: {len(event.get('messages', []))} mensajes en estado")
 
         # ✅ ARREGLO: Usar final_event_state directamente si está disponible
@@ -150,8 +187,22 @@ def chat_with_agent():
             response_content = "El agente procesó su consulta pero no generó una respuesta textual."
             logger.warning(f"Respuesta vacía para thread {thread_id}")
 
+        # ✅ REGISTRAR MÉTRICAS DE EJECUCIÓN
+        total_execution_time = time.time() - start_time
+        
+        if not tools_used:
+            log_execution_metric("ejecucion_sin_tools", total_execution_time)
+        else:
+            if 'rag' in tools_used:
+                log_execution_metric("ejecucion_con_rag", total_execution_time)
+            if 'availability' in tools_used:
+                log_execution_metric("ejecucion_con_availability", total_execution_time)
+            if 'booking' in tools_used:
+                log_execution_metric("ejecucion_con_booking", total_execution_time)
+
         # Logging de la respuesta
         logger.info(f"💬 Respuesta del agente para '{thread_id}': '{response_content[:100]}{'...' if len(response_content) > 100 else ''}'")
+        logger.info(f"📊 Tiempo total de ejecución: {total_execution_time:.3f}s, Herramientas usadas: {tools_used}")
         
         # Obtener info de sesión después del procesamiento
         if redis_checkpointer:
@@ -162,14 +213,21 @@ def chat_with_agent():
         return jsonify({
             "response": response_content,
             "thread_id": thread_id,
-            "timestamp": time.time()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "execution_time": round(total_execution_time, 3),
+            "tools_used": list(tools_used)
         })
 
     except Exception as e:
+        # ✅ REGISTRAR MÉTRICA INCLUSO EN ERROR
+        execution_time = time.time() - start_time
+        log_execution_metric("ejecucion_error", execution_time)
+        
         logger.error(f"❌ Error durante la interacción del agente para '{thread_id}': {e}", exc_info=True)
         return jsonify({
             "error": f"Error interno del servidor: {str(e)[:100]}",
-            "thread_id": thread_id
+            "thread_id": thread_id,
+            "execution_time": round(execution_time, 3)
         }), 500
 
 @app.route('/sessions/<thread_id>', methods=['GET'])
@@ -316,9 +374,12 @@ def cleanup_old_sessions():
 @app.route('/health', methods=['GET'])
 def health_check():
     """
-    Health check endpoint extendido con información de Redis.
+    Health check endpoint extendido con información de Redis y Métricas.
     """
-    health_info = {"status": "ok", "timestamp": "2025-07-02T11:24:19Z"}
+    health_info = {
+        "status": "ok", 
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
     
     # Verificar Redis
     if redis_checkpointer:
@@ -334,6 +395,17 @@ def health_check():
     
     # Verificar agente
     health_info["agent"] = "initialized" if agent_instance else "not_initialized"
+    
+    # ✅ VERIFICAR MÉTRICAS
+    if metric_logger:
+        try:
+            # Test simple de conexión (si métrica está habilitada)
+            health_info["metrics"] = "initialized"
+        except Exception as e:
+            health_info["metrics"] = f"error: {str(e)[:50]}"
+            health_info["status"] = "degraded"
+    else:
+        health_info["metrics"] = "not_initialized"
     
     return jsonify(health_info)
 
