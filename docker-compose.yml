@@ -209,12 +209,10 @@ services:
       - REDIS_DB=0
       - SESSION_TTL_HOURS=24
     depends_on:
-      qdrant:
-        condition: service_healthy
       ollama:
         condition: service_healthy
       api:
-        condition: service_completed_successfully
+        condition: service_started
     networks:
       - rag-network
       - postgres
