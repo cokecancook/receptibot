@@ -1,9 +1,12 @@
 import os
+import re
 import logging
+import time
 from flask import Flask, request, jsonify
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from src.agents.modules.agent import RagAgent
 from src.agents.modules.tools import ALL_TOOLS_LIST
+from src.agents.modules.redis_checkpointer import RedisCheckpointer
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -11,83 +14,328 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Global variable to hold the agent instance
+# Global variables
 agent_instance = None
+redis_checkpointer = None
+
+def clean_agent_response(content):
+    """Limpia tags de pensamiento y formatea la respuesta del agente."""
+    if isinstance(content, str):
+        # Remover tags <think>...</think>
+        cleaned = re.sub(r"<think>.*?</think>\s*\n?", "", content, flags=re.DOTALL).strip()
+        return cleaned
+    return str(content) if content else "Sin contenido en la respuesta."
+
+def validate_thread_id(thread_id):
+    """Valida el formato del thread_id para evitar problemas de seguridad."""
+    # Solo permitir caracteres alfanuméricos, guiones y guiones bajos
+    if not thread_id or not isinstance(thread_id, str):
+        return False
+    if len(thread_id) > 100:  # Límite razonable
+        return False
+    if not re.match(r'^[a-zA-Z0-9_-]+$', thread_id):
+        return False
+    return True
 
 def initialize_agent():
     """
-    Initializes the RagAgent instance.
-    This is called before the first request.
+    Inicializa el RagAgent instance y el Redis checkpointer.
+    Se llama antes de la primera request.
     """
-    global agent_instance
+    global agent_instance, redis_checkpointer
     if agent_instance is None:
         try:
-            logger.info("🚀 Initializing RagAgent...")
+            logger.info("🚀 Inicializando RagAgent...")
             agent_instance = RagAgent(tools=ALL_TOOLS_LIST)
-            logger.info("✅ RagAgent initialized successfully.")
+            
+            # Inicializar checkpointer independiente para operaciones de gestión
+            redis_checkpointer = RedisCheckpointer()
+            
+            logger.info("✅ RagAgent y RedisCheckpointer inicializados correctamente.")
         except Exception as e:
-            logger.critical(f"❌ Failed to initialize RagAgent: {e}", exc_info=True)
-            # This will cause the app to fail on first request if agent fails,
-            # which is desirable to avoid running in a broken state.
-            raise RuntimeError("Could not initialize the agent.") from e
+            logger.critical(f"❌ Error crítico inicializando el agente: {e}", exc_info=True)
+            raise RuntimeError("No se pudo inicializar el agente.") from e
 
 @app.before_request
 def before_request_func():
-    # Initialize agent before the first request
+    # Inicializar agente antes de la primera request
     initialize_agent()
 
 @app.route('/chat', methods=['POST'])
 def chat_with_agent():
     """
-    Endpoint to handle a chat interaction with the agent.
+    Endpoint principal para interacción con el agente.
+    Maneja persistencia automática de conversaciones.
     """
     if agent_instance is None:
-        return jsonify({"error": "Agent not initialized."}), 503
+        return jsonify({"error": "Agente no inicializado."}), 503
 
     data = request.get_json()
     if not data or 'message' not in data:
-        return jsonify({"error": "The 'message' field is required."}), 400
+        return jsonify({"error": "El campo 'message' es requerido."}), 400
 
-    message = data['message']
-    thread_id = data.get('thread_id', 'default-thread')
+    message = data['message'].strip()
+    if not message:
+        return jsonify({"error": "El mensaje no puede estar vacío."}), 400
+    
+    if len(message) > 2000:  # Límite razonable
+        return jsonify({"error": "Mensaje demasiado largo (máximo 2000 caracteres)."}), 400
 
-    logger.info(f"📬 Received chat request for thread '{thread_id}'")
+    thread_id = data.get('thread_id', f'user-fab1an12-{time.time()}')
+    
+    # Validar thread_id
+    if not validate_thread_id(thread_id):
+        return jsonify({"error": "thread_id inválido. Solo se permiten caracteres alfanuméricos, - y _."}), 400
 
-    # Configuration for the LangGraph agent stream
+    logger.info(f"📬 Mensaje recibido para thread '{thread_id}': '{message[:100]}{'...' if len(message) > 100 else ''}'")
+
+    # Configuración para LangGraph
     config = {"configurable": {"thread_id": thread_id}}
     
-    # The input for the graph stream
+    # Input para el grafo
     input_for_graph = {"messages": [HumanMessage(content=message)]}
 
     try:
-        # Stream the agent's response
+        # Obtener info de sesión antes del procesamiento (para logging)
+        session_info_before = None
+        if redis_checkpointer:
+            session_info_before = redis_checkpointer.get_session_info(thread_id)
+            if session_info_before:
+                logger.info(f"📊 Sesión existente encontrada: {session_info_before.get('message_count', 0)} mensajes anteriores")
+            else:
+                logger.info(f"🆕 Nueva sesión iniciada para thread '{thread_id}'")
+
+        # Procesar con el agente (automáticamente carga y guarda en Redis)
         final_event_state = None
         for event in agent_instance.graph.stream(input_for_graph, config=config, stream_mode="values"):
             final_event_state = event
+            logger.debug(f"📊 Evento del stream: {len(event.get('messages', []))} mensajes en estado")
 
-        # Get the final state from the checkpointer
-        final_graph_state = agent_instance.graph.get_state(config)
-        
-        if final_graph_state and final_graph_state.values['messages']:
-            final_agent_message = final_graph_state.values['messages'][-1]
-            response_content = getattr(final_agent_message, 'content', "No content in final message.")
-            
-            logger.info(f"💬 Agent response for thread '{thread_id}': {response_content}")
-            return jsonify({"response": response_content})
+        # ✅ ARREGLO: Usar final_event_state directamente si está disponible
+        if final_event_state and final_event_state.get('messages'):
+            final_agent_message = final_event_state['messages'][-1]
+            logger.info(f"✅ Estado final obtenido del stream: {type(final_agent_message).__name__}")
         else:
-            logger.error(f"No final state found for thread '{thread_id}'")
-            return jsonify({"error": "Could not retrieve agent's final response."}), 500
+            # Fallback: obtener desde Redis
+            logger.info("🔄 Obteniendo estado final desde Redis...")
+            final_graph_state = agent_instance.graph.get_state(config)
+            
+            if final_graph_state and final_graph_state.values and final_graph_state.values.get('messages'):
+                final_agent_message = final_graph_state.values['messages'][-1]
+                logger.info(f"✅ Estado final obtenido desde Redis: {type(final_agent_message).__name__}")
+            else:
+                logger.error(f"❌ No se pudo obtener estado final para thread '{thread_id}'")
+                logger.error(f"   final_event_state: {bool(final_event_state)}")
+                logger.error(f"   final_graph_state: {bool(final_graph_state) if 'final_graph_state' in locals() else 'No definido'}")
+                return jsonify({"error": "No se pudo obtener la respuesta final del agente."}), 500
+
+        # Manejar diferentes tipos de mensajes finales
+        if isinstance(final_agent_message, AIMessage):
+            response_content = clean_agent_response(final_agent_message.content)
+            
+            # Si tiene tool_calls pendientes, podría no tener contenido final
+            if not response_content and hasattr(final_agent_message, 'tool_calls') and final_agent_message.tool_calls:
+                response_content = "Procesando su solicitud..."
+                
+        elif isinstance(final_agent_message, ToolMessage):
+            # Si el último mensaje es de herramienta, podría indicar error
+            response_content = f"Error procesando herramienta: {final_agent_message.content[:200]}..."
+            logger.warning(f"Conversación terminó en ToolMessage para {thread_id}")
+            
+        else:
+            response_content = clean_agent_response(getattr(final_agent_message, 'content', 'Sin contenido disponible.'))
+
+        # Verificar que tenemos una respuesta válida
+        if not response_content or response_content.strip() == "":
+            response_content = "El agente procesó su consulta pero no generó una respuesta textual."
+            logger.warning(f"Respuesta vacía para thread {thread_id}")
+
+        # Logging de la respuesta
+        logger.info(f"💬 Respuesta del agente para '{thread_id}': '{response_content[:100]}{'...' if len(response_content) > 100 else ''}'")
+        
+        # Obtener info de sesión después del procesamiento
+        if redis_checkpointer:
+            session_info_after = redis_checkpointer.get_session_info(thread_id)
+            if session_info_after:
+                logger.info(f"📊 Sesión actualizada: {session_info_after.get('message_count', 0)} mensajes totales")
+
+        return jsonify({
+            "response": response_content,
+            "thread_id": thread_id,
+            "timestamp": time.time()
+        })
 
     except Exception as e:
-        logger.error(f"❌ Error during agent interaction: {e}", exc_info=True)
-        return jsonify({"error": f"An internal error occurred: {e}"}), 500
+        logger.error(f"❌ Error durante la interacción del agente para '{thread_id}': {e}", exc_info=True)
+        return jsonify({
+            "error": f"Error interno del servidor: {str(e)[:100]}",
+            "thread_id": thread_id
+        }), 500
+
+@app.route('/sessions/<thread_id>', methods=['GET'])
+def get_session_info(thread_id):
+    """
+    Obtiene información de una sesión específica.
+    """
+    if not validate_thread_id(thread_id):
+        return jsonify({"error": "thread_id inválido."}), 400
+    
+    if not redis_checkpointer:
+        return jsonify({"error": "Redis no disponible."}), 503
+    
+    try:
+        session_info = redis_checkpointer.get_session_info(thread_id)
+        
+        if session_info:
+            return jsonify({
+                "thread_id": thread_id,
+                "session_info": session_info,
+                "exists": True
+            })
+        else:
+            return jsonify({
+                "thread_id": thread_id,
+                "exists": False,
+                "message": "Sesión no encontrada o expirada."
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error obteniendo info de sesión {thread_id}: {e}")
+        return jsonify({"error": "Error obteniendo información de sesión."}), 500
+
+@app.route('/sessions/<thread_id>/clear', methods=['DELETE'])
+def clear_session(thread_id):
+    """
+    Limpia una sesión específica.
+    """
+    if not validate_thread_id(thread_id):
+        return jsonify({"error": "thread_id inválido."}), 400
+    
+    if not redis_checkpointer:
+        return jsonify({"error": "Redis no disponible."}), 503
+    
+    try:
+        # Limpiar del Redis checkpointer
+        cleared = redis_checkpointer.clear_session(thread_id)
+        
+        # También limpiar del grafo del agente
+        if agent_instance:
+            config = {"configurable": {"thread_id": thread_id}}
+            try:
+                agent_instance.graph.clear_state(config)
+            except Exception as e:
+                logger.warning(f"Error limpiando estado del grafo para {thread_id}: {e}")
+        
+        if cleared:
+            logger.info(f"🗑️ Sesión '{thread_id}' limpiada correctamente")
+            return jsonify({
+                "message": f"Sesión '{thread_id}' limpiada correctamente.",
+                "thread_id": thread_id,
+                "cleared": True
+            })
+        else:
+            return jsonify({
+                "message": f"Sesión '{thread_id}' no encontrada o ya estaba limpia.",
+                "thread_id": thread_id,
+                "cleared": False
+            }), 404
+            
+    except Exception as e:
+        logger.error(f"Error limpiando sesión {thread_id}: {e}")
+        return jsonify({"error": "Error limpiando sesión."}), 500
+
+@app.route('/sessions', methods=['GET'])
+def list_sessions():
+    """
+    Lista sesiones activas con información básica.
+    """
+    if not redis_checkpointer:
+        return jsonify({"error": "Redis no disponible."}), 503
+    
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        limit = min(max(limit, 1), 100)  # Entre 1 y 100
+        
+        sessions = redis_checkpointer.list_active_sessions(limit=limit)
+        
+        # Formatear la respuesta
+        formatted_sessions = []
+        for session in sessions:
+            formatted_sessions.append({
+                "thread_id": session.get("thread_id"),
+                "message_count": session.get("message_count", 0),
+                "last_updated": session.get("saved_at"),
+                "last_message_type": session.get("last_message_type"),
+                "user_login": session.get("user_login", "fab1an12")
+            })
+        
+        return jsonify({
+            "sessions": formatted_sessions,
+            "total_found": len(formatted_sessions),
+            "limit": limit
+        })
+        
+    except Exception as e:
+        logger.error(f"Error listando sesiones: {e}")
+        return jsonify({"error": "Error obteniendo lista de sesiones."}), 500
+
+@app.route('/sessions/cleanup', methods=['POST'])
+def cleanup_old_sessions():
+    """
+    Endpoint para limpiar sesiones específicas o testing.
+    """
+    if not redis_checkpointer:
+        return jsonify({"error": "Redis no disponible."}), 503
+    
+    data = request.get_json() or {}
+    threads_to_clean = data.get('thread_ids', [])
+    
+    if not isinstance(threads_to_clean, list):
+        return jsonify({"error": "thread_ids debe ser una lista."}), 400
+    
+    cleaned_count = 0
+    errors = []
+    
+    for thread_id in threads_to_clean:
+        if not validate_thread_id(thread_id):
+            errors.append(f"thread_id inválido: {thread_id}")
+            continue
+            
+        try:
+            if redis_checkpointer.clear_session(thread_id):
+                cleaned_count += 1
+        except Exception as e:
+            errors.append(f"Error limpiando {thread_id}: {str(e)}")
+    
+    return jsonify({
+        "cleaned_sessions": cleaned_count,
+        "errors": errors,
+        "total_requested": len(threads_to_clean)
+    })
 
 @app.route('/health', methods=['GET'])
 def health_check():
     """
-    Health check endpoint to verify the API is running.
+    Health check endpoint extendido con información de Redis.
     """
-    return jsonify({"status": "ok"})
+    health_info = {"status": "ok", "timestamp": "2025-07-02T11:24:19Z"}
+    
+    # Verificar Redis
+    if redis_checkpointer:
+        try:
+            redis_checkpointer.redis_client.ping()
+            health_info["redis"] = "connected"
+        except Exception as e:
+            health_info["redis"] = f"error: {str(e)[:50]}"
+            health_info["status"] = "degraded"
+    else:
+        health_info["redis"] = "not_initialized"
+        health_info["status"] = "degraded"
+    
+    # Verificar agente
+    health_info["agent"] = "initialized" if agent_instance else "not_initialized"
+    
+    return jsonify(health_info)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8081, debug=True)

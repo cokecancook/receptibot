@@ -12,6 +12,7 @@ from langgraph.graph import END, StateGraph
 from .config import OLLAMA_MODEL_NAME
 from .state import AgentState, get_current_agent_scratchpad, update_state_after_llm, update_state_after_tool
 from .prompt import RAG_SYSTEM_PROMPT
+from .redis_checkpointer import RedisCheckpointer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -54,9 +55,15 @@ class RagAgent:
         # Flujo: Tool -> update_state_after_tool -> LLM
         workflow.add_edge('invoke_tools_node', 'update_state_after_tool')
         workflow.add_edge('update_state_after_tool', 'call_llm')
-
-        self.graph = workflow.compile(checkpointer=MemorySaver())
-        logger.info("✅ Grafo del agente compilado con manejo de estado.")
+        try:
+            # Inicializar Redis Checkpointer
+            redis_checkpointer = RedisCheckpointer()
+            self.graph = workflow.compile(checkpointer=redis_checkpointer)
+            logger.info("✅ Grafo del agente compilado con RedisCheckpointer.")
+        except Exception as e:
+            logger.error(f"❌ Error inicializando RedisCheckpointer, usando MemorySaver como fallback: {e}")
+            self.graph = workflow.compile(checkpointer=MemorySaver())
+            logger.warning("⚠️ Usando MemorySaver como fallback - Las conversaciones no persistirán")
 
     def update_state_after_llm(self, state: AgentState) -> AgentState:
         """Wrapper to call the state update function from the state module."""
