@@ -218,6 +218,20 @@ services:
       - postgres
     restart: unless-stopped
 
+  grafana: 
+    image: grafana/grafana:latest
+    container_name: grafana_container
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-Admin2425!}
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - postgres
+    restart: unless-stopped
+
 networks:
   postgres:
     driver: bridge
@@ -232,3 +246,4 @@ volumes:
   qdrant_data:
   ollama_data:
   redis_stack_data:
+  grafana_data:
