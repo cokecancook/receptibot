@@ -8,7 +8,7 @@ API_URL = "http://localhost:8081/chat"
 
 # The data to send in the request
 payload = {
-    "message": "como me llamo?",
+    "message": "Hay disponibilidad en el gimnasio para mañana",
     "thread_id": "python-test-01"
 }
 
