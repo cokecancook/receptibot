@@ -2,7 +2,7 @@ import os
 import re
 import logging
 import time
-import uuid  # ✅ AÑADIDO: Importado para generar IDs de sesión únicos
+import uuid
 from datetime import datetime, timezone
 from flask import Flask, request, jsonify
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
@@ -10,10 +10,9 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 # --- Importaciones de tu proyecto ---
 from src.agents.modules.agent import RagAgent
 from src.agents.modules.tools import ALL_TOOLS_LIST
-# ✅ AÑADIDO: Nuevos módulos para persistencia y métricas
 from src.agents.modules.redis_checkpointer import RedisCheckpointer
 from src.agents.modules.metriclogger import MetricLogger
-from src.agents.modules.config import OLLAMA_MODEL_NAME # Asumo que tienes este archivo de config
+from src.agents.modules.config import OLLAMA_MODEL_NAME
 
 # --- Configuración del Logging ---
 logging.basicConfig(level=logging.INFO)
@@ -21,16 +20,16 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# --- ✅ AÑADIDO: Variables Globales para los componentes ---
+# --- Variables Globales para los componentes ---
 agent_instance = None
 redis_checkpointer = None
 metric_logger = None
 
-# ✅ AÑADIDO: Función de inicialización centralizada
+# --- Función de inicialización centralizada ---
 def initialize_components():
     """
     Inicializa el RagAgent, RedisCheckpointer y MetricLogger.
-    Se llama una sola vez antes de la primera petición.
+    Se llama una vez cuando el servidor de la aplicación se inicia.
     """
     global agent_instance, redis_checkpointer, metric_logger
     if agent_instance is None:
@@ -48,25 +47,19 @@ def initialize_components():
             logger.info("📊 MetricLogger inicializado correctamente.")
 
         except Exception as e:
-            # Si algo falla, el logger lo registrará como crítico.
-            # La aplicación seguirá funcionando pero los endpoints devolverán error 503.
             logger.critical(f"❌ Error crítico durante la inicialización de componentes: {e}", exc_info=True)
-            # Limpiamos las variables para que los checks fallen correctamente
             agent_instance = None
             redis_checkpointer = None
             metric_logger = None
 
+# ✅ SOLUCIÓN: Llama a la función de inicialización directamente al iniciar el script.
+# Esto reemplaza el obsoleto @app.before_first_request.
+initialize_components()
 
-@app.before_first_request
-def before_first_request_func():
-    """Se ejecuta una vez antes de procesar la primera petición."""
-    initialize_components()
-
-# --- ✅ AÑADIDO: Funciones de Ayuda ---
+# --- Funciones de Ayuda ---
 def clean_agent_response(content):
     """Limpia la respuesta final del agente para el usuario."""
     if isinstance(content, str):
-        # Elimina los pensamientos del LLM para no mostrarlos al usuario
         return re.sub(r"<think>.*?</think>\s*\n?", "", content, flags=re.DOTALL).strip()
     return str(content) if content else "El agente no generó una respuesta textual."
 
@@ -74,7 +67,6 @@ def validate_thread_id(thread_id):
     """Valida el formato del thread_id para seguridad y consistencia."""
     if not thread_id or not isinstance(thread_id, str) or len(thread_id) > 100:
         return False
-    # Permitir caracteres alfanuméricos, guiones y guiones bajos.
     return bool(re.match(r'^[a-zA-Z0-9_-]+$', thread_id))
 
 def log_execution_metric(metric_name: str, execution_time: float):
@@ -87,12 +79,12 @@ def log_execution_metric(metric_name: str, execution_time: float):
             logger.warning(f"⚠️ No se pudo registrar la métrica '{metric_name}': {e}")
 
 
-# --- Endpoint de Chat (Versión Mejorada) ---
+# --- Endpoints de la API ---
+
 @app.route('/chat', methods=['POST'])
 def chat_with_agent():
     start_time = time.time()
     
-    # Comprobar que los componentes esenciales están inicializados
     if not agent_instance or not redis_checkpointer:
         return jsonify({"error": "El Agente o el Checkpointer no están inicializados. Revise los logs del servidor."}), 503
 
@@ -106,7 +98,6 @@ def chat_with_agent():
     if len(message) > 2000:
         return jsonify({"error": "Mensaje demasiado largo (máximo 2000 caracteres)."}), 400
 
-    # Generar un thread_id si no se proporciona, usando UUID para unicidad
     thread_id = data.get('thread_id')
     if not thread_id:
         thread_id = f'session-{uuid.uuid4()}'
@@ -118,15 +109,12 @@ def chat_with_agent():
 
     config = {"configurable": {"thread_id": thread_id}}
     input_for_graph = {"messages": [HumanMessage(content=message)]}
-    tools_used = set() # ✅ AÑADIDO: Para rastrear qué herramientas se usan
+    tools_used = set()
 
     try:
         final_state = None
-        # Usamos .stream() para ejecutar el grafo y obtener los eventos
-        # stream_mode="values" nos da el estado completo en cada paso
         for event in agent_instance.graph.stream(input_for_graph, config=config, stream_mode="values"):
             final_state = event
-            # ✅ AÑADIDO: Detección de herramientas usadas en el stream
             if event.get('messages'):
                 for msg in event['messages']:
                     if isinstance(msg, AIMessage) and msg.tool_calls:
@@ -151,14 +139,14 @@ def chat_with_agent():
         return jsonify({
             "response": response_content,
             "thread_id": thread_id,
-            "execution_time_seconds": round(execution_time, 2), # ✅ AÑADIDO
-            "tools_used": list(tools_used), # ✅ AÑADIDO
-            "timestamp_utc": datetime.now(timezone.utc).isoformat() # ✅ AÑADIDO
+            "execution_time_seconds": round(execution_time, 2),
+            "tools_used": list(tools_used),
+            "timestamp_utc": datetime.now(timezone.utc).isoformat()
         })
 
     except Exception as e:
         execution_time = time.time() - start_time
-        log_execution_metric("ejecucion_error", execution_time) # ✅ AÑADIDO: Métrica en caso de error
+        log_execution_metric("ejecucion_error", execution_time)
         logger.error(f"❌ Error durante la interacción del agente para '{thread_id}': {e}", exc_info=True)
         return jsonify({"error": f"Error interno del servidor: {e}"}), 500
 
@@ -215,7 +203,6 @@ def get_session_history(thread_id):
         if not history.values['messages']:
              return jsonify({"message": "Sesión no encontrada o vacía.", "thread_id": thread_id}), 404
         
-        # Formatear para que sea JSON serializable
         messages = [msg.dict() for msg in history.values['messages']]
         return jsonify({"thread_id": thread_id, "history": messages})
     except Exception as e:
