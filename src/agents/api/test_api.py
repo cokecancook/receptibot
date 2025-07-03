@@ -8,7 +8,7 @@ API_URL = "http://localhost:8081/chat"
 
 # The data to send in the request
 payload = {
-    "message": "dime cosas sobre la politica de edad minima",
+    "message": "como me llamo?",
     "thread_id": "python-test-01"
 }
 
@@ -51,4 +51,3 @@ def test_agent_api():
 
 if __name__ == "__main__":
     test_agent_api()
-
