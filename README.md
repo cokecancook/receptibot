@@ -17,7 +17,7 @@ Sigue estos pasos para poner en marcha el agente conversacional:
 Desde la raíz del proyecto, ejecuta:
 
 ```bash
-docker compose up --build
+docker-compose up --build
 ```
 
 Esto construirá y levantará los servicios definidos en el archivo `docker-compose.yml`.
@@ -83,6 +83,6 @@ Una vez iniciado, el agente conversacional estará listo para recibir y procesar
 
 - Asegúrate de tener Docker y Python correctamente instalados.
 - Si tienes problemas con dependencias, revisa las versiones especificadas en `requirements.txt`.
-- Para detener los servicios Docker, usa `docker compose down`.
+- Para detener los servicios Docker, usa `docker-compose down`.
 
 ---
