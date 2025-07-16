@@ -10,49 +10,49 @@ El sistema está diseñado con una arquitectura de microservicios orquestada por
 
 ```mermaid
 graph TD
-    subgraph "Usuario"
-        A[👵 Un Huésped del Hotel]
+    subgraph Usuario
+        A[Un Huesped del Hotel]
     end
 
-    subgraph "La Pantalla del Chat"
-        B[💬 Interfaz de Chat (API)]
+    subgraph Pantalla_del_Chat
+        B[Interfaz de Chat - API]
     end
 
-    subgraph "El Cerebro del Sistema"
-        C(🤖 Agente Conversacional)
+    subgraph Cerebro_del_Sistema
+        C[Agente Conversacional]
     end
 
-    subgraph "La Memoria del Agente"
-        D[🧠 Redis: Memoria a Corto Plazo]
+    subgraph Memoria_del_Agente
+        D[Redis - Memoria a Corto Plazo]
     end
 
-    subgraph "Las Habilidades del Agente"
-        E{¿Es una pregunta o una orden?}
-        F[🗣️ Experto en Políticas del Hotel (RAG)]
-        G[🏨 Recepcionista Virtual]
+    subgraph Habilidades_del_Agente
+        E{Es una pregunta o una orden}
+        F[Experto en Politicas del Hotel - RAG]
+        G[Recepcionista Virtual]
     end
 
-    subgraph "Biblioteca del Hotel"
-        H[📚 Qdrant: El archivador de documentos]
-        I[✍️ Ollama: El que lee y redacta las respuestas]
+    subgraph Biblioteca_del_Hotel
+        H[Qdrant - Archivador de Documentos]
+        I[Ollama - Lector y Redactor]
     end
 
-    subgraph "Libro de Reservas"
-        J[🛏️ Base de Datos (PostgreSQL)]
+    subgraph Libro_de_Reservas
+        J[Base de Datos - PostgreSQL]
     end
 
     A -->|1. Escribe en el chat| B
-    B -->|2. Envía el mensaje al Agente| C
-    C <-->|Siempre recuerda la conversación| D
-    C -->|3. ¿Qué necesita el huésped?| E
+    B -->|2. Envia el mensaje al Agente| C
+    C <-->|Recuerda la conversacion| D
+    C -->|3. Que necesita el huesped?| E
 
-    E -->|Es una pregunta<br/>(ej: ¿cuál es la clave del WiFi?)| F
+    E -->|Es una pregunta| F
     F -->|4a. Busca en el archivador| H
     F -->|5a. Pide a Ollama que lea y entienda| I
     I -->|6a. Genera la respuesta| F
     F -->|7a. Devuelve la respuesta al Agente| C
 
-    E -->|Es una orden<br/>(ej: ¡reserva la sauna!)| G
+    E -->|Es una orden| G
     G -->|4b. Consulta el libro de reservas| J
     J -->|5b. Devuelve si hay sitio| G
     G -->|6b. Confirma la reserva y avisa al Agente| C
