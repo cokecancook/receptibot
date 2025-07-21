@@ -220,3 +220,12 @@ TFM-Deusens/
 * **Error `service "..." failed to build`:** Make sure Docker has enough resources (CPU, memory) assigned. Check the build logs to identify the specific error.
 * **Agent not responding:** Verify that all Docker containers are running (`docker ps`). Check the container logs (`docker compose logs <service_name>`) for errors.
 * **Python dependency issues:** Make sure you are using the correct Python version and have installed all dependencies from the corresponding `requirements.txt` in the activated virtual environment.
+
+---
+
+## Authors
+
+- [Alejandro Bosch](https://github.com/Alejbc27)
+- [Fabian Miulescu](https://github.com/fab1an12)
+- [Carlos Portilla](https://github.com/caporti)
+- [Coke Stuyck](https://github.com/cokecancook)
