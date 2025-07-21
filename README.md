@@ -106,27 +106,6 @@ This set of services allows the agent to answer questions based on hotel policy 
 
 ---
 
-#### Pipeline de RAG (Retrieval-Augmented Generation)
-
----
-
-#### RAG Pipeline (Retrieval-Augmented Generation)
-
-This set of services allows the agent to answer questions based on hotel policy documents.
-
-* **Ollama (`ollama`)**: Service to run large language models (LLMs) locally. Handles text generation and embeddings.
-* **Vector Database (`qdrant`)**: Stores document embeddings for semantic searches.
-* **RAG Loader (`rag_loader`)**: Processes text documents, generates their embeddings with Ollama, and loads them into Qdrant.
-* **Search API (`api_rag`)**: API that receives a query, converts it into an embedding, and searches for the most relevant documents in Qdrant.
-
-#### Otros Componentes
-
-#### Other Components
-
-* **Redis (`redis-stack`)**: In-memory database used to manage the agent's conversation history and state.
-
-## Despliegue y Uso
-
 ## Deployment and Usage
 
 Follow these steps to deploy and use the hotel assistant.
@@ -180,7 +159,6 @@ To stop all services, press `Ctrl + C` in the terminal where you ran `docker com
 docker compose down
 ```
 
-## Desarrollo
 
 ## Development
 
@@ -220,8 +198,6 @@ You can run the agent locally for testing. Note that the agent will expect the o
 python -m modules.cli
 ```
 
-## Estructura del Proyecto
-
 ## Project Structure
 
 ```
@@ -238,8 +214,6 @@ TFM-Deusens/
 │   └── rag_loader/         # Logic to load documents into the RAG system
 └── .gitignore
 ```
-
-## Troubleshooting
 
 ## Troubleshooting
 
