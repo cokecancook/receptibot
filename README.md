@@ -3,6 +3,9 @@
 
 This project implements an intelligent conversational hotel assistant. The assistant can answer questions about hotel policies (using RAG) and manage reservations for services such as the gym or sauna.
 
+![aliceassistant-deusens](https://github.com/user-attachments/assets/3b163979-fa0b-4d6d-a26e-73db0a4884d3)
+
+
 ## Architecture
 
 The system is designed with a microservices architecture orchestrated by Docker Compose. Below is an architecture diagram and a description of the components.
@@ -61,8 +64,6 @@ graph TD
     C -->|8. Prepares the final answer| B
     B -->|9. Shows the answer on screen| A
 ```
-
-### Componentes Principales
 
 ---
 ### Main Components
@@ -159,6 +160,7 @@ To stop all services, press `Ctrl + C` in the terminal where you ran `docker com
 docker compose down
 ```
 
+---
 
 ## Development
 
@@ -198,6 +200,8 @@ You can run the agent locally for testing. Note that the agent will expect the o
 python -m modules.cli
 ```
 
+---
+
 ## Project Structure
 
 ```
@@ -214,6 +218,8 @@ TFM-Deusens/
 │   └── rag_loader/         # Logic to load documents into the RAG system
 └── .gitignore
 ```
+
+---
 
 ## Troubleshooting
 
