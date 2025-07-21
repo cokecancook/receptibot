@@ -1,137 +1,184 @@
-# TFM-Deusens: Asistente de Hotel Conversacional
+# Receptibot
+## TFM-Deusens: Asistente de Hotel Conversacional
 
-Este proyecto implementa un asistente de hotel conversacional inteligente. El asistente puede responder a preguntas sobre las políticas del hotel (utilizando RAG) y gestionar reservas de servicios como el gimnasio o la sauna.
+---
+# Receptibot
+## TFM-Deusens: Conversational Hotel Assistant
 
-## Arquitectura
+This project implements an intelligent conversational hotel assistant. The assistant can answer questions about hotel policies (using RAG) and manage reservations for services such as the gym or sauna.
 
-El sistema está diseñado con una arquitectura de microservicios orquestada por Docker Compose. A continuación se presenta un diagrama de la arquitectura y una descripción de los componentes.
+## Architecture
 
-### Diagrama de Funcionamiento
+The system is designed with a microservices architecture orchestrated by Docker Compose. Below is an architecture diagram and a description of the components.
+
+### System Diagram
 
 ```mermaid
 graph TD
-    subgraph Usuario
-        A[Un Huesped del Hotel]
+    subgraph User
+        A[A Hotel Guest]
     end
 
-    subgraph Pantalla_del_Chat
-        B[Interfaz de Chat - API]
+    subgraph Chat_Screen
+        B[Chat Interface - API]
     end
 
-    subgraph Cerebro_del_Sistema
-        C[Agente Conversacional]
+    subgraph System_Brain
+        C[Conversational Agent]
     end
 
-    subgraph Memoria_del_Agente
-        D[Redis - Memoria a Corto Plazo]
+    subgraph Agent_Memory
+        D[Redis - Short-Term Memory]
     end
 
-    subgraph Habilidades_del_Agente
-        E{Es una pregunta o una orden}
-        F[Experto en Politicas del Hotel - RAG]
-        G[Recepcionista Virtual]
+    subgraph Agent_Skills
+        E{Is it a question or a command}
+        F[Hotel Policy Expert - RAG]
+        G[Virtual Receptionist]
     end
 
-    subgraph Biblioteca_del_Hotel
-        H[Qdrant - Archivador de Documentos]
-        I[Ollama - Lector y Redactor]
+    subgraph Hotel_Library
+        H[Qdrant - Document Archive]
+        I[Ollama - Reader and Writer]
     end
 
-    subgraph Libro_de_Reservas
-        J[Base de Datos - PostgreSQL]
+    subgraph Reservation_Book
+        J[Database - PostgreSQL]
     end
 
-    A -->|1. Escribe en el chat| B
-    B -->|2. Envia el mensaje al Agente| C
-    C <-->|Recuerda la conversacion| D
-    C -->|3. Que necesita el huesped?| E
+    A -->|1. Writes in the chat| B
+    B -->|2. Sends the message to the Agent| C
+    C <-->|Remembers the conversation| D
+    C -->|3. What does the guest need?| E
 
-    E -->|Es una pregunta| F
-    F -->|4a. Busca en el archivador| H
-    F -->|5a. Pide a Ollama que lea y entienda| I
-    I -->|6a. Genera la respuesta| F
-    F -->|7a. Devuelve la respuesta al Agente| C
+    E -->|It's a question| F
+    F -->|4a. Searches the archive| H
+    F -->|5a. Asks Ollama to read and understand| I
+    I -->|6a. Generates the answer| F
+    F -->|7a. Returns the answer to the Agent| C
 
-    E -->|Es una orden| G
-    G -->|4b. Consulta el libro de reservas| J
-    J -->|5b. Devuelve si hay sitio| G
-    G -->|6b. Confirma la reserva y avisa al Agente| C
+    E -->|It's a command| G
+    G -->|4b. Checks the reservation book| J
+    J -->|5b. Returns if there is availability| G
+    G -->|6b. Confirms the reservation and notifies the Agent| C
 
-    C -->|8. Prepara la respuesta final| B
-    B -->|9. Muestra la respuesta en pantalla| A
+    C -->|8. Prepares the final answer| B
+    B -->|9. Shows the answer on screen| A
 ```
 
 ### Componentes Principales
 
-*   **Agente Conversacional (`agent-api`)**: El cerebro del sistema. Es una API que expone el agente conversacional. Este agente integra y orquesta los demás servicios:
-    *   Utiliza la **Search API** para responder preguntas sobre las políticas del hotel (RAG).
-    *   Llama a la **API de Servicios** para consultar disponibilidad y hacer reservas.
-    *   Mantiene el estado de la conversación utilizando **Redis**.
-*   **API de Servicios (`api_services`)**: API REST que gestiona la lógica de negocio del hotel, como consultar disponibilidad y crear reservas para el gimnasio, la sauna, etc.
-*   **Base de Datos (`database`)**: Base de datos PostgreSQL que almacena datos transaccionales como reservas y usuarios.
-*   **Generador de Datos (`generator`)**: Script que se ejecuta al inicio para poblar la base de datos con datos de prueba.
+---
+### Main Components
+
+* **Conversational Agent (`agent-api`)**: The brain of the system. Exposes the conversational agent via an API. Integrates and orchestrates other services:
+    * **Endpoints:** `/agent/invoke` (POST) — Receives user queries and returns responses.
+    * Uses the **Search API** to answer questions about hotel policies (RAG).
+    * Calls the **Services API** to check availability and make reservations.
+    * Maintains conversation state using **Redis**.
+
+* **Services API (`api_services`)**: REST API that manages hotel business logic, such as checking availability and creating reservations for the gym, sauna, etc.
+    * **Endpoints:** `/services/reservations` (GET/POST), `/services/availability` (GET)
+    * Handles creation, modification, and querying of reservations.
+
+* **Database (`database`)**: PostgreSQL database that stores transactional data such as reservations and users.
+    * **Main tables:** `reservations`, `users`
+
+* **Data Generator (`generator`)**: Script that runs at startup to populate the database with test data.
+    * **Main function:** Seeds the database with initial users and reservations.
+
+#### RAG Pipeline (Retrieval-Augmented Generation)
+
+This set of services allows the agent to answer questions based on hotel policy documents.
+
+* **Ollama (`ollama`)**: Service to run large language models (LLMs) locally. Handles text generation and embeddings.
+    * **Endpoints:** `/generate` (POST), `/embed` (POST)
+
+* **Vector Database (`qdrant`)**: Stores document embeddings for semantic searches.
+    * **Main function:** Stores and retrieves vector representations of documents.
+
+* **RAG Loader (`rag_loader`)**: Processes text documents, generates their embeddings with Ollama, and loads them into Qdrant.
+    * **Main function:** Loads and indexes hotel policy documents for semantic search.
+
+* **Search API (`api_rag`)**: API that receives a query, converts it into an embedding, and searches for the most relevant documents in Qdrant.
+    * **Endpoints:** `/search` (POST)
+
+#### Other Components
+
+* **Redis (`redis-stack`)**: In-memory database used to manage the agent's conversation history and state.
+    * **Main function:** Stores short-term memory and session data for conversations.
+
+---
 
 #### Pipeline de RAG (Retrieval-Augmented Generation)
 
-Este conjunto de servicios permite al agente responder preguntas basadas en documentos de políticas del hotel.
+---
 
-*   **Ollama (`ollama`)**: Servicio para ejecutar modelos de lenguaje grandes (LLMs) de forma local. Se encarga de la generación de texto y de los embeddings.
-*   **Base de Datos Vectorial (`qdrant`)**: Almacena los embeddings de los documentos para realizar búsquedas semánticas.
-*   **Cargador RAG (`rag_loader`)**: Procesa los documentos de texto, genera sus embeddings con Ollama y los carga en Qdrant.
-*   **API de Búsqueda (`api_rag`)**: API que recibe una consulta, la convierte en un embedding y busca los documentos más relevantes en Qdrant.
+#### RAG Pipeline (Retrieval-Augmented Generation)
+
+This set of services allows the agent to answer questions based on hotel policy documents.
+
+* **Ollama (`ollama`)**: Service to run large language models (LLMs) locally. Handles text generation and embeddings.
+* **Vector Database (`qdrant`)**: Stores document embeddings for semantic searches.
+* **RAG Loader (`rag_loader`)**: Processes text documents, generates their embeddings with Ollama, and loads them into Qdrant.
+* **Search API (`api_rag`)**: API that receives a query, converts it into an embedding, and searches for the most relevant documents in Qdrant.
 
 #### Otros Componentes
 
-*   **Redis (`redis-stack`)**: Base de datos en memoria utilizada para gestionar el historial y el estado de las conversaciones del agente.
+#### Other Components
+
+* **Redis (`redis-stack`)**: In-memory database used to manage the agent's conversation history and state.
 
 ## Despliegue y Uso
 
-Sigue estos pasos para desplegar y utilizar el asistente de hotel.
+## Deployment and Usage
 
-### Requisitos Previos
+Follow these steps to deploy and use the hotel assistant.
 
-*   [Docker](https://www.docker.com/get-started)
-*   [Docker Compose](https://docs.docker.com/compose/install/)
+### Prerequisites
 
-### 1. Levantar los Servicios
+* [Docker](https://www.docker.com/get-started)
+* [Docker Compose](https://docs.docker.com/compose/install/)
 
-Desde la raíz del proyecto, ejecuta el siguiente comando para construir y levantar todos los servicios en contenedores Docker:
+### 1. Start the Services
+
+From the project root, run the following command to build and start all services in Docker containers:
 
 ```bash
 docker compose up --build
 ```
 
-Este comando orquestará todos los servicios definidos en `docker-compose.yml`.
+This command will orchestrate all services defined in `docker-compose.yml`.
 
-### 2. Interactuar con el Agente
+### 2. Interact with the Agent
 
-Una vez que todos los servicios estén en funcionamiento, puedes interactuar con el agente a través de su API. El agente está expuesto en el puerto `8001`.
+Once all services are running, you can interact with the agent through its API. The agent is exposed on port `8001`.
 
-Puedes usar una herramienta como `curl` o Postman para enviar peticiones al agente.
+You can use a tool like `curl` or Postman to send requests to the agent.
 
-**Ejemplo de consulta sobre políticas del hotel:**
+**Example query about hotel policies:**
 
 ```bash
 curl -X POST http://localhost:8001/agent/invoke -H "Content-Type: application/json" -d '{
-    "input": "Cuales son las politicas de cancelacion?",
+    "input": "What are the cancellation policies?",
     "config": {},
     "kwargs": {}
 }'
 ```
 
-**Ejemplo de reserva de un servicio:**
+**Example service reservation:**
 
 ```bash
 curl -X POST http://localhost:8001/agent/invoke -H "Content-Type: application/json" -d '{
-    "input": "Reserva la sauna para mañana a las 10",
+    "input": "Book the sauna for tomorrow at 10am",
     "config": {},
     "kwargs": {}
 }'
 ```
 
-### 3. Detener los Servicios
+### 3. Stop the Services
 
-Para detener todos los servicios, presiona `Ctrl + C` en la terminal donde ejecutaste `docker compose up`, y luego ejecuta:
+To stop all services, press `Ctrl + C` in the terminal where you ran `docker compose up`, and then run:
 
 ```bash
 docker compose down
@@ -139,61 +186,67 @@ docker compose down
 
 ## Desarrollo
 
-Si deseas contribuir al proyecto o ejecutar componentes de forma local para desarrollo, sigue estas instrucciones.
+## Development
 
-### Requisitos Previos
+If you want to contribute to the project or run components locally for development, follow these instructions.
 
-*   [Python 3.8+](https://www.python.org/downloads/)
-*   [pip](https://pip.pypa.io/en/stable/installation/)
+### Prerequisites
 
-### Configuración del Entorno Local
+* [Python 3.8+](https://www.python.org/downloads/)
+* [pip](https://pip.pypa.io/en/stable/installation/)
 
-1.  **Crea y activa un entorno virtual:**
+### Local Environment Setup
+
+1. **Create and activate a virtual environment:**
 
     ```bash
     python -m venv .venv
     ```
 
-    *   **Windows:** `.\.venv\Scripts\activate`
-    *   **macOS/Linux:** `source .venv/bin/activate`
+    * **Windows:** `.\.venv\Scripts\activate`
+    * **macOS/Linux:** `source .venv/bin/activate`
 
-2.  **Instala las dependencias del agente:**
+2. **Install agent dependencies:**
 
-    Navega a la carpeta del agente e instala los requisitos:
+    Navigate to the agent folder and install the requirements:
 
     ```bash
     cd src/agents
     pip install -r requirements.txt
     ```
 
-### Ejecutar el Agente Localmente
+### Run the Agent Locally
 
-Puedes ejecutar el agente localmente para pruebas. Ten en cuenta que el agente esperará que los otros servicios (API de servicios, RAG, etc.) estén accesibles. La forma más sencilla de asegurar esto es ejecutar esos servicios con Docker mientras ejecutas el agente localmente.
+You can run the agent locally for testing. Note that the agent will expect the other services (Services API, RAG, etc.) to be accessible. The easiest way to ensure this is to run those services with Docker while running the agent locally.
 
 ```bash
-# Desde la carpeta src/agents
+# From the src/agents folder
 python -m modules.cli
 ```
 
 ## Estructura del Proyecto
 
+## Project Structure
+
 ```
 TFM-Deusens/
-├── docker-compose.yml      # Orquestación de los servicios
-├── README.md               # Este fichero
-├── README_ARQUITECTURA.md  # Explicación detallada de la arquitectura
+├── docker-compose.yml      # Service orchestration
+├── README.md               # This file
+├── README_ARQUITECTURA.md  # Detailed architecture explanation
 ├── src/
-│   ├── agents/             # Código del agente conversacional
-│   ├── api/                # APIs (servicios y RAG)
-│   ├── database/           # Configuración de la base de datos
-│   ├── generator/          # Generador de datos para la BD
-│   ├── ollama/             # Configuración de Ollama
-│   └── rag_loader/         # Lógica para cargar documentos en el sistema RAG
+│   ├── agents/             # Conversational agent code
+│   ├── api/                # APIs (services and RAG)
+│   ├── database/           # Database configuration
+│   ├── generator/          # Data generator for the DB
+│   ├── ollama/             # Ollama configuration
+│   └── rag_loader/         # Logic to load documents into the RAG system
 └── .gitignore
 ```
 
 ## Troubleshooting
 
-*   **Error `service "..." failed to build`:** Asegúrate de que Docker tiene suficientes recursos (CPU, memoria) asignados. Revisa los logs de construcción para identificar el error específico.
-*   **El agente no responde:** Verifica que todos los contenedores Docker estén en funcionamiento (`docker ps`). Revisa los logs de los contenedores (`docker compose logs <nombre_del_servicio>`) para buscar errores.
-*   **Problemas de dependencias en Python:** Asegúrate de que estás utilizando la versión correcta de Python y de que has instalado todas las dependencias del `requirements.txt` correspondiente en el entorno virtual activado.
+## Troubleshooting
+
+* **Error `service "..." failed to build`:** Make sure Docker has enough resources (CPU, memory) assigned. Check the build logs to identify the specific error.
+* **Agent not responding:** Verify that all Docker containers are running (`docker ps`). Check the container logs (`docker compose logs <service_name>`) for errors.
+* **Python dependency issues:** Make sure you are using the correct Python version and have installed all dependencies from the corresponding `requirements.txt` in the activated virtual environment.
