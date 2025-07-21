@@ -1,8 +1,4 @@
 # Receptibot
-## TFM-Deusens: Asistente de Hotel Conversacional
-
----
-# Receptibot
 ## TFM-Deusens: Conversational Hotel Assistant
 
 This project implements an intelligent conversational hotel assistant. The assistant can answer questions about hotel policies (using RAG) and manage reservations for services such as the gym or sauna.
